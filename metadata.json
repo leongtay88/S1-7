@@ -1,0 +1,6 @@
+{
+  "name": "S1-7 Term 4 Check-in & Finish Well",
+  "description": "Secondary 1-7 CCE Term 4 wellbeing check-in, B.A.S.I.C. Ph coping strategies, and Finish Well Card interactive activity.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

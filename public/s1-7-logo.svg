@@ -1,0 +1,157 @@
+
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Filter for distress texture inside S1-7 -->
+    <filter id="grunge" x="0%" y="0%" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.08" numOctaves="4" result="noise" />
+      <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 9 -4" result="contrast" />
+      <feComposite in2="SourceAlpha" operator="in" result="texturedAlpha" />
+      <feComposite in="SourceGraphic" in2="texturedAlpha" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Group for splatter & text -->
+  <g transform="translate(0, 0)">
+    <!-- Droplets and satellite flecks -->
+    <!-- Top drip -->
+    <path d="M 536 148 C 542 148 546 160 546 174 C 546 186 540 196 534 196 C 528 196 524 186 524 174 C 524 160 530 148 536 148 Z" fill="#FFCD03"/>
+    <ellipse cx="535" cy="275" rx="5" ry="8" fill="#FFCD03"/>
+
+    <!-- Left side droplets -->
+    <ellipse cx="363" cy="246" rx="14" ry="17" fill="#FFCD03"/>
+    <circle cx="260" cy="270" r="6" fill="#FFCD03"/>
+    <circle cx="215" cy="455" r="16" fill="#FFCD03"/>
+    <circle cx="265" cy="648" r="13" fill="#FFCD03"/>
+    <ellipse cx="180" cy="605" rx="11" ry="13" fill="#FFCD03"/>
+    <circle cx="260" cy="762" r="13" fill="#FFCD03"/>
+
+    <!-- Bottom satellite droplets -->
+    <circle cx="458" cy="768" r="8" fill="#FFCD03"/>
+    <circle cx="708" cy="735" r="12" fill="#FFCD03"/>
+
+    <!-- Main Yellow Paint Splatter Body -->
+    <path d="
+      M 535 240
+      C 560 280, 580 295, 615 315
+      C 630 325, 650 310, 665 330
+      C 675 342, 650 360, 680 375
+      C 700 385, 715 365, 735 390
+      C 755 415, 720 445, 755 470
+      C 770 482, 780 475, 795 500
+      C 805 520, 775 540, 785 570
+      C 792 590, 765 615, 760 645
+      C 755 675, 720 680, 710 710
+      C 702 730, 680 720, 670 740
+      C 660 755, 645 720, 630 735
+      C 620 745, 622 760, 612 770
+      C 600 780, 590 735, 575 745
+      C 560 755, 540 765, 520 775
+      C 512 778, 508 765, 500 750
+      C 490 735, 470 755, 455 740
+      C 440 725, 445 700, 430 695
+      C 410 690, 395 725, 375 715
+      C 355 705, 360 675, 340 660
+      C 320 645, 290 655, 280 635
+      C 270 615, 305 600, 295 580
+      C 285 560, 235 565, 240 540
+      C 245 520, 290 515, 285 490
+      C 280 470, 240 450, 255 430
+      C 270 410, 305 430, 320 405
+      C 330 390, 300 370, 325 350
+      C 345 335, 380 370, 400 340
+      C 415 315, 400 290, 425 270
+      C 445 255, 470 290, 490 280
+      C 505 270, 520 230, 535 240
+      Z
+    " fill="#FFCD03" />
+
+    <!-- Spiky splatter bursts and projections -->
+    <path d="
+      M 480 270 Q 500 200 520 260 Z
+      M 605 310 Q 640 280 630 330 Z
+      M 670 370 Q 720 340 690 390 Z
+      M 740 440 Q 800 430 760 480 Z
+      M 780 540 Q 825 560 775 585 Z
+      M 750 630 Q 795 670 735 675 Z
+      M 675 715 Q 710 765 655 745 Z
+      M 610 740 Q 625 805 595 765 Z
+      M 535 760 Q 538 815 515 770 Z
+      M 465 730 Q 430 785 435 725 Z
+      M 380 705 Q 330 745 350 685 Z
+      M 310 645 Q 240 665 290 615 Z
+      M 265 540 Q 195 540 260 505 Z
+      M 265 440 Q 205 410 280 395 Z
+      M 315 365 Q 265 315 340 335 Z
+      M 405 330 Q 380 260 435 295 Z
+    " fill="#FFCD03"/>
+
+    <!-- CENTER TEXT GROUP WITH EXACT SLIGHT ROTATION (~ -1.6deg) -->
+    <g transform="translate(535, 520) rotate(-1.5)">
+      <!-- S1-7 Main distressed text -->
+      <g fill="#1B1B18">
+        <!-- Main S1-7 letters created with heavy bold forms -->
+        <text 
+          x="0" 
+          y="-30" 
+          text-anchor="middle" 
+          font-family="'Impact', 'Arial Black', 'Trebuchet MS', sans-serif" 
+          font-size="160" 
+          font-weight="900" 
+          letter-spacing="4px"
+        >S1-7</text>
+      </g>
+
+      <!-- Tiny distress specks inside S1-7 matching the authentic artwork -->
+      <g fill="#FFCD03">
+        <circle cx="-160" cy="-60" r="2.5"/>
+        <circle cx="-145" cy="-90" r="2"/>
+        <circle cx="-130" cy="-40" r="2.8"/>
+        <circle cx="-150" cy="-25" r="2"/>
+        <circle cx="-75" cy="-70" r="2.2"/>
+        <circle cx="-65" cy="-110" r="2.5"/>
+        <circle cx="-55" cy="-45" r="1.8"/>
+        <circle cx="85" cy="-95" r="2.5"/>
+        <circle cx="95" cy="-60" r="2"/>
+        <circle cx="110" cy="-80" r="2.2"/>
+        <circle cx="120" cy="-35" r="2.8"/>
+        <circle cx="70" cy="-40" r="2.2"/>
+      </g>
+
+      <!-- Subtitle line 1: LEARNING TO LEARN -->
+      <text 
+        x="0" 
+        y="42" 
+        text-anchor="middle" 
+        fill="#1B1B18" 
+        font-family="'Montserrat', 'Arial', 'Helvetica Neue', sans-serif" 
+        font-size="34" 
+        font-weight="800" 
+        letter-spacing="2.5px"
+      >LEARNING TO LEARN</text>
+
+      <!-- Subtitle line 2: AND -->
+      <text 
+        x="0" 
+        y="95" 
+        text-anchor="middle" 
+        fill="#1B1B18" 
+        font-family="'Montserrat', 'Arial', 'Helvetica Neue', sans-serif" 
+        font-size="34" 
+        font-weight="800" 
+        letter-spacing="2.5px"
+      >AND</text>
+
+      <!-- Subtitle line 3: GROW TOGETHER -->
+      <text 
+        x="0" 
+        y="148" 
+        text-anchor="middle" 
+        fill="#1B1B18" 
+        font-family="'Montserrat', 'Arial', 'Helvetica Neue', sans-serif" 
+        font-size="34" 
+        font-weight="800" 
+        letter-spacing="2.5px"
+      >GROW TOGETHER</text>
+    </g>
+  </g>
+</svg>
