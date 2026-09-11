@@ -13,6 +13,7 @@ interface HeaderNavProps {
   onToggleTimer: () => void;
   currentStudent?: StudentRosterItem | null;
   onOpenCheckIn?: () => void;
+  isStudentMode?: boolean;
 }
 
 export const HeaderNav: React.FC<HeaderNavProps> = ({
@@ -22,6 +23,7 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
   onToggleTimer,
   currentStudent,
   onOpenCheckIn,
+  isStudentMode = false,
 }) => {
   const navItems: { id: NavTab; label: string; partNum?: string }[] = [
     { id: 'overview', label: 'Overview' },
@@ -113,20 +115,27 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
               </button>
             )}
 
-            {/* Teacher Host Mode Button */}
-            <button
-              onClick={() => onSelectTab('teacher')}
-              className={`min-h-[44px] px-3 sm:px-4 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition active:scale-95 border-2 ${
-                currentTab === 'teacher'
-                  ? 'bg-slate-950 text-amber-300 border-slate-900 shadow-xs'
-                  : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-950 border-indigo-200'
-              }`}
-              title="Open Teacher Host Mode: QR Code, Roster & Participation Tracker"
-            >
-              <QrCode className="w-4 h-4 text-indigo-600" />
-              <span className="hidden sm:inline">Teacher Host</span>
-              <span className="sm:hidden">Host</span>
-            </button>
+            {/* Teacher Host Mode Button (Only shown if not in student mode) */}
+            {!isStudentMode ? (
+              <button
+                onClick={() => onSelectTab('teacher')}
+                className={`min-h-[44px] px-3 sm:px-4 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition active:scale-95 border-2 ${
+                  currentTab === 'teacher'
+                    ? 'bg-slate-950 text-amber-300 border-slate-900 shadow-xs'
+                    : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-950 border-indigo-200'
+                }`}
+                title="Open Teacher Host Mode: QR Code, Roster & Participation Tracker"
+              >
+                <QrCode className="w-4 h-4 text-indigo-600" />
+                <span className="hidden sm:inline">Teacher Host</span>
+                <span className="sm:hidden">Host</span>
+              </button>
+            ) : (
+              <div className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold border border-slate-200 select-none">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Participant</span>
+              </div>
+            )}
 
             {/* Timer Toggle */}
             <button
@@ -173,17 +182,19 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
               </button>
             );
           })}
-          <button
-            onClick={() => onSelectTab('teacher')}
-            className={`min-h-[40px] px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap transition-all flex items-center gap-1 ${
-              currentTab === 'teacher'
-                ? 'bg-indigo-950 text-amber-300'
-                : 'bg-indigo-50 text-indigo-900'
-            }`}
-          >
-            <QrCode className="w-3.5 h-3.5" />
-            <span>Host QR</span>
-          </button>
+          {!isStudentMode && (
+            <button
+              onClick={() => onSelectTab('teacher')}
+              className={`min-h-[40px] px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap transition-all flex items-center gap-1 ${
+                currentTab === 'teacher'
+                  ? 'bg-indigo-950 text-amber-300'
+                  : 'bg-indigo-50 text-indigo-900'
+              }`}
+            >
+              <QrCode className="w-3.5 h-3.5" />
+              <span>Host QR</span>
+            </button>
+          )}
         </div>
       </div>
     </header>

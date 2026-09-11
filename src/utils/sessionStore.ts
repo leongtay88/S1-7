@@ -100,6 +100,60 @@ export const subscribeToSync = (callback: (action: string, payload: unknown) => 
 // STORAGE HELPERS - Maintains active S1-7 student namelist
 export const getStoredRoster = (): StudentRosterItem[] => {
   if (typeof window === 'undefined') return [];
+
+  // 1. HIGHEST PRIORITY: If URL has roster encoded from scanned teacher QR code
+  try {
+    const url = new URL(window.location.href);
+    const rosterParam = 
+      url.searchParams.get('r') || 
+      url.searchParams.get('roster') || 
+      url.searchParams.get('names') || 
+      url.searchParams.get('class');
+
+    if (rosterParam) {
+      const names = decodeRosterFromParam(rosterParam);
+      if (names.length > 0) {
+        const scannedRoster = createRosterFromNames(names);
+        try {
+          localStorage.setItem('s17_student_roster', JSON.stringify(scannedRoster));
+          localStorage.setItem('s17_user_mode', 'student');
+        } catch {
+          // ignore
+        }
+        return scannedRoster;
+      }
+    }
+
+    // Also inspect hash in case scanner or router placed params after #
+    if (window.location.hash) {
+      const hashRaw = window.location.hash.replace(/^#\/?/, '');
+      const queryIdx = hashRaw.indexOf('?');
+      const hashStr = queryIdx >= 0 ? hashRaw.substring(queryIdx + 1) : hashRaw;
+      const hashParams = new URLSearchParams(hashStr);
+      const hashRoster = 
+        hashParams.get('r') || 
+        hashParams.get('roster') || 
+        hashParams.get('names');
+
+      if (hashRoster) {
+        const names = decodeRosterFromParam(hashRoster);
+        if (names.length > 0) {
+          const scannedRoster = createRosterFromNames(names);
+          try {
+            localStorage.setItem('s17_student_roster', JSON.stringify(scannedRoster));
+            localStorage.setItem('s17_user_mode', 'student');
+          } catch {
+            // ignore
+          }
+          return scannedRoster;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Could not parse roster from URL', e);
+  }
+
+  // 2. Read from localStorage on this device
   const saved = localStorage.getItem('s17_student_roster');
   if (saved) {
     try {
@@ -112,7 +166,7 @@ export const getStoredRoster = (): StudentRosterItem[] => {
     }
   }
 
-  // Default fallback: S1-7 official 28-student roster
+  // 3. Default fallback: S1-7 official 28-student roster
   const initial: StudentRosterItem[] = INITIAL_S17_ROSTER.map((s, idx) => ({
     id: s.id || `s-${idx + 1}`,
     name: s.name,
@@ -139,13 +193,43 @@ export const saveRoster = (roster: StudentRosterItem[]) => {
 };
 
 /**
+ * Creates StudentRosterItem objects from a plain string array of student names
+ */
+export const createRosterFromNames = (names: string[]): StudentRosterItem[] => {
+  const seen = new Set<string>();
+  const list: StudentRosterItem[] = [];
+
+  names.forEach((rawName, index) => {
+    const name = rawName.trim();
+    if (!name) return;
+    const key = name.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+
+    list.push({
+      id: `s-stu-${index + 1}`,
+      name,
+      hasJoined: false,
+      memoryNoteCount: 0,
+      groupContributionsCount: 0,
+      cardsSentCount: 0,
+      reflectionCompleted: false,
+      completionScore: 0,
+    });
+  });
+
+  return list;
+};
+
+/**
  * Compact URL encoder for cross-device roster synchronization on static hosts (like GitHub Pages)
+ * Replaces whitespace with '+' and delimits with '~' to create ultra-compact URLs for fast QR scanning.
  */
 export const encodeRosterToParam = (roster: StudentRosterItem[]): string => {
   try {
     const names = roster.map((s) => s.name.trim()).filter(Boolean);
     if (names.length === 0) return '';
-    return encodeURIComponent(names.join('|'));
+    return names.map((n) => n.replace(/\s+/g, '+')).join('~');
   } catch {
     return '';
   }
@@ -153,19 +237,33 @@ export const encodeRosterToParam = (roster: StudentRosterItem[]): string => {
 
 /**
  * Compact URL decoder for cross-device roster synchronization
+ * Supports '~', '|', ';', ',', and newline delimiters, plus '+' or '%20' spaces.
  */
 export const decodeRosterFromParam = (param: string): string[] => {
   try {
-    const decoded = decodeURIComponent(param);
-    let names: string[] = [];
-    if (decoded.includes('|')) {
-      names = decoded.split('|');
-    } else if (decoded.includes('\n')) {
-      names = decoded.split(/\r?\n/);
-    } else {
-      names = decoded.split(',');
+    let raw = param;
+    try {
+      raw = decodeURIComponent(param);
+    } catch {
+      raw = param;
     }
-    return names.map((n) => n.replace(/^[0-9]+[.)\s-]+/, '').trim()).filter(Boolean);
+    let parts: string[] = [];
+    if (raw.includes('~')) {
+      parts = raw.split('~');
+    } else if (raw.includes('|')) {
+      parts = raw.split('|');
+    } else if (raw.includes('\n')) {
+      parts = raw.split(/\r?\n/);
+    } else if (raw.includes(';')) {
+      parts = raw.split(';');
+    } else if (raw.includes(',')) {
+      parts = raw.split(',');
+    } else {
+      parts = [raw];
+    }
+    return parts
+      .map((n) => n.replace(/\+/g, ' ').replace(/^[0-9]+[.)\s-]+/, '').trim())
+      .filter((n) => n.length > 0 && !n.toLowerCase().includes('student name'));
   } catch {
     return [];
   }
@@ -179,13 +277,43 @@ export const buildStudentJoinUrl = (roster: StudentRosterItem[]): string => {
   const origin = window.location.origin;
   const pathname = window.location.pathname;
   const encoded = encodeRosterToParam(roster);
-  const base = `${origin}${pathname}?mode=student&session=s17`;
-  return encoded ? `${base}&roster=${encoded}` : base;
+  const base = `${origin}${pathname}?mode=student`;
+  return encoded ? `${base}&r=${encodeURIComponent(encoded)}` : base;
+};
+
+/**
+ * Helper to check if current device/browser is in Student Participant Mode
+ */
+export const isStudentModeActive = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('mode') === 'teacher' || params.get('tab') === 'teacher' || params.get('role') === 'teacher') {
+      localStorage.setItem('s17_user_mode', 'teacher');
+      return false;
+    }
+    if (
+      params.get('mode') === 'student' || 
+      params.get('join') === 'true' || 
+      params.get('role') === 'student' || 
+      params.has('r') || 
+      params.has('roster')
+    ) {
+      localStorage.setItem('s17_user_mode', 'student');
+      return true;
+    }
+    const saved = localStorage.getItem('s17_user_mode');
+    if (saved === 'student') return true;
+    if (saved === 'teacher') return false;
+  } catch {
+    // ignore
+  }
+  return false;
 };
 
 /**
  * Auto-initialize roster on app load:
- * 1. Checks if ?roster=... is in the URL search or hash (e.g. scanned from teacher QR code)
+ * 1. Checks if ?r=... is in the URL search or hash (e.g. scanned from teacher QR code)
  * 2. Checks if a static class-list.txt exists on the server/GitHub Pages
  * 3. Falls back to stored roster or initial S1-7 roster
  */
@@ -195,7 +323,12 @@ export const initRosterFromUrlOrStorage = async (): Promise<StudentRosterItem[]>
   // 1. Check URL parameters
   try {
     const url = new URL(window.location.href);
-    const rosterParam = url.searchParams.get('roster') || url.searchParams.get('names') || url.searchParams.get('class');
+    const rosterParam = 
+      url.searchParams.get('r') || 
+      url.searchParams.get('roster') || 
+      url.searchParams.get('names') || 
+      url.searchParams.get('class');
+
     if (rosterParam) {
       const names = decodeRosterFromParam(rosterParam);
       if (names.length > 0) {
@@ -205,9 +338,12 @@ export const initRosterFromUrlOrStorage = async (): Promise<StudentRosterItem[]>
     }
 
     // Also check hash in case of hash-based routing
-    if (window.location.hash.includes('roster=')) {
-      const hashParams = new URLSearchParams(window.location.hash.replace(/^#\/?/, ''));
-      const hashRoster = hashParams.get('roster');
+    if (window.location.hash) {
+      const hashStr = window.location.hash.replace(/^#\/?/, '');
+      const queryIdx = hashStr.indexOf('?');
+      const searchToParse = queryIdx >= 0 ? hashStr.substring(queryIdx + 1) : hashStr;
+      const hashParams = new URLSearchParams(searchToParse);
+      const hashRoster = hashParams.get('r') || hashParams.get('roster') || hashParams.get('names');
       if (hashRoster) {
         const names = decodeRosterFromParam(hashRoster);
         if (names.length > 0) {

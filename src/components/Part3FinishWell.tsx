@@ -190,6 +190,13 @@ export const Part3FinishWell: React.FC = () => {
 
   // Sync roster and active student
   useEffect(() => {
+    setRoster(getStoredRoster());
+    const current = getCurrentStudent();
+    setCurrentStudentState(current);
+    if ((!partnerName || partnerName === 'Your S1-7 Friend') && current?.name) {
+      setPartnerName(current.name);
+    }
+
     const unsubscribe = subscribeToSync((action, payload) => {
       if (action === 'ROSTER_UPDATED') {
         setRoster(getStoredRoster());
@@ -201,7 +208,18 @@ export const Part3FinishWell: React.FC = () => {
         }
       }
     });
-    return () => unsubscribe();
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 's17_student_roster') {
+        setRoster(getStoredRoster());
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener('storage', handleStorage);
+    };
   }, [partnerName]);
 
   const showToast = (msg: string) => {

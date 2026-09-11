@@ -14,14 +14,16 @@ import { TeacherDashboard } from './components/TeacherDashboard';
 import { StudentCheckInModal } from './components/StudentCheckInModal';
 import { S17Logo } from './components/S17Logo';
 import { Heart, Sparkles, ChevronRight, BookOpen, Clock, QrCode } from 'lucide-react';
-import { getCurrentStudent, subscribeToSync } from './utils/sessionStore';
+import { getCurrentStudent, subscribeToSync, isStudentModeActive, initRosterFromUrlOrStorage } from './utils/sessionStore';
 import { StudentRosterItem } from './types';
 
 export default function App() {
+  const [isStudentMode, setIsStudentMode] = useState<boolean>(isStudentModeActive);
+
   const [currentTab, setCurrentTab] = useState<NavTab>(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
-      if (params.get('mode') === 'teacher' || params.get('tab') === 'teacher') {
+      if (!isStudentModeActive() && (params.get('mode') === 'teacher' || params.get('tab') === 'teacher')) {
         return 'teacher';
       }
     }
@@ -33,12 +35,28 @@ export default function App() {
   const [showCheckInModal, setShowCheckInModal] = useState(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
-      if (params.get('mode') === 'student' || params.get('join') === 'true') {
+      if (params.get('mode') === 'student' || params.get('join') === 'true' || params.has('r') || params.has('roster')) {
         return true;
       }
     }
     return false;
   });
+
+  // Guard against student ever accessing teacher host view
+  useEffect(() => {
+    if (isStudentMode && currentTab === 'teacher') {
+      setCurrentTab('overview');
+    }
+  }, [isStudentMode, currentTab]);
+
+  // Initialize roster from URL or storage on first mount
+  useEffect(() => {
+    initRosterFromUrlOrStorage().then(() => {
+      // Re-evaluate student identity and mode
+      setCurrentStudentState(getCurrentStudent());
+      setIsStudentMode(isStudentModeActive());
+    });
+  }, []);
 
   // Listen for sync events
   useEffect(() => {
@@ -47,6 +65,8 @@ export default function App() {
         setCurrentStudentState(payload as StudentRosterItem);
       } else if (action === 'STUDENT_LOGOUT') {
         setCurrentStudentState(null);
+      } else if (action === 'ROSTER_UPDATED') {
+        setCurrentStudentState(getCurrentStudent());
       }
     });
     return () => unsubscribe();
@@ -62,6 +82,7 @@ export default function App() {
         onToggleTimer={() => setShowFloatingTimer((prev) => !prev)}
         currentStudent={currentStudent}
         onOpenCheckIn={() => setShowCheckInModal(true)}
+        isStudentMode={isStudentMode}
       />
 
       {/* Persistent Floating Timer Widget on iPad/Desktop when enabled */}
@@ -85,7 +106,7 @@ export default function App() {
         {currentTab === 'part1' && <Part1Sentiments />}
         {currentTab === 'part2' && <Part2BasicPh />}
         {currentTab === 'part3' && <Part3FinishWell />}
-        {currentTab === 'teacher' && (
+        {currentTab === 'teacher' && !isStudentMode && (
           <TeacherDashboard
             onClose={() => setCurrentTab('overview')}
             onSwitchToStudent={() => setCurrentTab('overview')}
@@ -126,13 +147,17 @@ export default function App() {
               >
                 Part 3: Finish Well
               </button>
-              <ChevronRight className="w-3 h-3 text-slate-400" />
-              <button
-                onClick={() => setCurrentTab('teacher')}
-                className={`hover:text-slate-900 ${currentTab === 'teacher' ? 'text-indigo-600 font-bold' : ''}`}
-              >
-                Host Mode
-              </button>
+              {!isStudentMode && (
+                <>
+                  <ChevronRight className="w-3 h-3 text-slate-400" />
+                  <button
+                    onClick={() => setCurrentTab('teacher')}
+                    className={`hover:text-slate-900 ${currentTab === 'teacher' ? 'text-indigo-600 font-bold' : ''}`}
+                  >
+                    Host Mode
+                  </button>
+                </>
+              )}
             </span>
           </div>
 

@@ -122,21 +122,20 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onClose, onS
     if (!studentJoinUrl) return;
 
     QRCodeLib.toDataURL(studentJoinUrl, {
-      width: 400,
+      width: 440,
       margin: 2,
       color: {
         dark: '#0F172A',
         light: '#FFFFFF',
       },
-      errorCorrectionLevel: 'M',
+      errorCorrectionLevel: 'L',
     })
       .then((url) => setQrCodeDataUrl(url))
       .catch((err) => {
-        console.warn('QR code fallback to base URL', err);
-        const fallbackUrl = typeof window !== 'undefined'
-          ? `${window.location.origin}${window.location.pathname}?mode=student&session=s17`
-          : '';
-        QRCodeLib.toDataURL(fallbackUrl, { width: 400, margin: 2 }).then(setQrCodeDataUrl);
+        console.error('Error generating QR code with L correction', err);
+        QRCodeLib.toDataURL(studentJoinUrl, { width: 440, margin: 1 })
+          .then((url) => setQrCodeDataUrl(url))
+          .catch((e2) => console.error('Secondary QR code failure', e2));
       });
   }, [studentJoinUrl]);
 
