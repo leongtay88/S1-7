@@ -23,7 +23,8 @@ import {
   Flame,
   Star,
   UserCheck,
-  ChevronDown
+  ChevronDown,
+  Copy
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import confetti from 'canvas-confetti';
@@ -107,6 +108,14 @@ const CARD_THEMES: ColorTheme[] = [
 export const Part3FinishWell: React.FC = () => {
   // Card ref for PNG export
   const cardRef = useRef<HTMLDivElement>(null);
+
+  // iPad & Mobile Card Export Modal state
+  const [ipadExportModal, setIpadExportModal] = useState<{
+    imageURI: string;
+    blob: Blob;
+    fileName: string;
+  } | null>(null);
+  const [copiedImageToast, setCopiedImageToast] = useState(false);
 
   // Active theme
   const [activeThemeId, setActiveThemeId] = useState<string>('gold');
@@ -772,42 +781,115 @@ export const Part3FinishWell: React.FC = () => {
     drawStarSparkle(ctx, 1110, 70, 4, 10, 4, '#38BDF8');
   };
 
-  // Export card as PNG file - Matches Vibrant Live Preview Exactly
+  // Export card as PNG file - Specially optimized for iPad, iPhone, Android, and Desktop
   const handleSaveAsPNG = async () => {
     playTapSound();
     setIsExportingPNG(true);
 
     const safeFileName = `S1-7_Finish_Well_Card_${(recipientName || 'Classmate').replace(/[^a-zA-Z0-9_-]/g, '_')}.png`;
 
+    // 1. ALWAYS persist card and record participation immediately so work is never lost
+    persistCard();
+    recordFinishWellCardSent({
+      id: activeCardId,
+      recipientName: recipientName.trim() || 'Classmate',
+      className: classNameVal.trim() || 'Sec 1-7',
+      youAre: youAre.trim(),
+      youCan: youCan.trim(),
+      youHave: youHave.trim(),
+      getThroughWhen: getThroughWhen.trim(),
+      partnerName: partnerName.trim() || (currentStudent ? currentStudent.name : 'Your S1-7 Friend'),
+      themeColor: activeTheme.accentHex,
+      createdAt: Date.now(),
+    });
+
     try {
+      // 2. Render high resolution card canvas
       const canvas = document.createElement('canvas');
       await renderVibrantCardCanvas(canvas);
 
-      const imageURI = canvas.toDataURL('image/png');
-      const downloadLink = document.createElement('a');
-      downloadLink.download = safeFileName;
-      downloadLink.href = imageURI;
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      document.body.removeChild(downloadLink);
+      // Verify canvas rendered correctly or fallback to html2canvas
+      let blob: Blob | null = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+      let imageURI = canvas.toDataURL('image/png');
 
-      // Track completion in session store
-      persistCard();
-      recordFinishWellCardSent({
-        id: activeCardId,
-        recipientName: recipientName.trim() || 'Classmate',
-        className: classNameVal.trim() || 'Sec 1-7',
-        youAre: youAre.trim(),
-        youCan: youCan.trim(),
-        youHave: youHave.trim(),
-        getThroughWhen: getThroughWhen.trim(),
-        partnerName: partnerName.trim() || (currentStudent ? currentStudent.name : 'Your S1-7 Friend'),
-        themeColor: activeTheme.accentHex,
-        createdAt: Date.now(),
-      });
+      if (!blob && cardRef.current) {
+        const fallbackCanvas = await html2canvas(cardRef.current, {
+          scale: 2,
+          backgroundColor: '#FFFFFF',
+          logging: false,
+          useCORS: true,
+          allowTaint: true,
+        });
+        blob = await new Promise<Blob | null>((resolve) => fallbackCanvas.toBlob(resolve, 'image/png'));
+        imageURI = fallbackCanvas.toDataURL('image/png');
+      }
 
-      playCelebrationFanfare();
-      showToast('📥 Vibrant Finish Well Card saved to your downloads / photos!');
+      if (!blob) {
+        throw new Error('Could not generate image blob from canvas');
+      }
+
+      // Check if user is on iPad or iOS
+      const isIOSorIPad = typeof navigator !== 'undefined' && (
+        /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+      );
+
+      // Try Native Web Share API if supported (Works wonderfully on iPad Safari to "Save Image" to Photos)
+      let sharedSuccessfully = false;
+      if (typeof File !== 'undefined' && navigator.canShare) {
+        const file = new File([blob], safeFileName, { type: 'image/png' });
+        if (navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              files: [file],
+              title: 'S1-7 Finish Well Card',
+              text: `Finish Well Affirmation Card for ${recipientName || 'my classmate'}`,
+            });
+            sharedSuccessfully = true;
+            playCelebrationFanfare();
+            showToast('📥 Card saved / shared successfully!');
+          } catch (shareErr: any) {
+            if (shareErr?.name === 'AbortError') {
+              // User dismissed or cancelled share sheet
+              sharedSuccessfully = true;
+            } else {
+              console.warn('Share API non-critical notice:', shareErr);
+            }
+          }
+        }
+      }
+
+      // If not shared via native share or on desktop/fallback, trigger standard browser download using Blob URL
+      if (!sharedSuccessfully) {
+        try {
+          const blobUrl = URL.createObjectURL(blob);
+          const downloadLink = document.createElement('a');
+          downloadLink.download = safeFileName;
+          downloadLink.href = blobUrl;
+          downloadLink.rel = 'noopener';
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          setTimeout(() => {
+            document.body.removeChild(downloadLink);
+            URL.revokeObjectURL(blobUrl);
+          }, 1500);
+
+          playCelebrationFanfare();
+          showToast('📥 Finish Well Card saved to your downloads!');
+        } catch (downloadErr) {
+          console.warn('Direct blob download failed:', downloadErr);
+        }
+      }
+
+      // On iPad or mobile devices, open the iPad Card Save Sheet / Modal so the student can directly
+      // touch & hold to "Save to Photos" or use native buttons!
+      if (isIOSorIPad || !sharedSuccessfully) {
+        setIpadExportModal({
+          imageURI,
+          blob,
+          fileName: safeFileName,
+        });
+      }
     } catch (err) {
       console.warn('Canvas export failed, attempting html2canvas fallback:', err);
       try {
@@ -820,17 +902,19 @@ export const Part3FinishWell: React.FC = () => {
             useCORS: true,
             allowTaint: true,
           });
+          const fallbackBlob = await new Promise<Blob | null>((resolve) => fallbackCanvas.toBlob(resolve, 'image/png'));
           const imageURI = fallbackCanvas.toDataURL('image/png');
-          const downloadLink = document.createElement('a');
-          downloadLink.download = safeFileName;
-          downloadLink.href = imageURI;
-          document.body.appendChild(downloadLink);
-          downloadLink.click();
-          document.body.removeChild(downloadLink);
-          showToast('📥 Saved PNG successfully!');
+          if (fallbackBlob) {
+            setIpadExportModal({
+              imageURI,
+              blob: fallbackBlob,
+              fileName: safeFileName,
+            });
+            showToast('📱 Opened Card for iPad saving!');
+          }
         }
       } catch {
-        showToast('⚠️ Could not save image automatically.');
+        showToast('⚠️ Could not save image automatically. Please take a screenshot of your card.');
       }
     } finally {
       setIsExportingPNG(false);
@@ -1641,6 +1725,143 @@ export const Part3FinishWell: React.FC = () => {
           </div>
         </div>
       </section>
+
+      {/* ======================================================== */}
+      {/* 5. IPAD & TABLET EXPORT MODAL (Guaranteed save to iPad Photos) */}
+      {/* ======================================================== */}
+      {ipadExportModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-5 sm:p-7 border-4 border-slate-900 shadow-[8px_8px_0px_#0F172A] space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b-2 border-slate-200">
+              <div className="flex items-center gap-2">
+                <span className="p-2 rounded-xl bg-amber-100 text-amber-900">
+                  <Sparkles className="w-5 h-5 text-amber-600" />
+                </span>
+                <div>
+                  <h3 className="text-base sm:text-lg font-black text-slate-950">
+                    Save Finish Well Card (iPad / Tablet)
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Your card is ready to save to Photos or share
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIpadExportModal(null)}
+                className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* iPad Instruction Alert */}
+            <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-3.5 flex items-start gap-3">
+              <span className="text-xl">💡</span>
+              <div className="text-xs text-amber-950 space-y-1">
+                <p className="font-bold">How to save to your iPad Photos:</p>
+                <p>
+                  <strong>Option A:</strong> Tap the <strong>"Save to Photos / Share"</strong> button below and choose <strong>"Save Image"</strong>.
+                </p>
+                <p>
+                  <strong>Option B:</strong> Press &amp; hold (long-tap) the card image below, then select <strong>"Save to Photos"</strong> or <strong>"Add to Photos"</strong>.
+                </p>
+              </div>
+            </div>
+
+            {/* Card Image Preview */}
+            <div className="rounded-2xl border-2 border-slate-900 overflow-hidden bg-slate-100 p-2 shadow-inner">
+              <img
+                src={ipadExportModal.imageURI}
+                alt="Finish Well Card for iPad"
+                className="w-full h-auto rounded-xl select-all cursor-pointer"
+                title="Press and hold to Save to Photos"
+              />
+            </div>
+
+            {/* Action Buttons */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  if (typeof File !== 'undefined' && navigator.canShare) {
+                    const file = new File([ipadExportModal.blob], ipadExportModal.fileName, { type: 'image/png' });
+                    if (navigator.canShare({ files: [file] })) {
+                      try {
+                        await navigator.share({
+                          files: [file],
+                          title: 'S1-7 Finish Well Card',
+                          text: `Finish Well Card for ${recipientName || 'Classmate'}`,
+                        });
+                        showToast('📥 Saved / Shared successfully!');
+                        return;
+                      } catch (e: any) {
+                        if (e?.name !== 'AbortError') console.warn(e);
+                      }
+                    }
+                  }
+                  showToast('💡 Long press on the image and tap Save to Photos!');
+                }}
+                className="py-3 px-4 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black text-xs sm:text-sm border-2 border-slate-900 shadow-[2px_2px_0px_#0F172A] flex items-center justify-center gap-2 transition active:scale-95"
+              >
+                <Share2 className="w-4 h-4" />
+                <span>Save to Photos / Share</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.write([
+                      new ClipboardItem({ 'image/png': ipadExportModal.blob }),
+                    ]);
+                    setCopiedImageToast(true);
+                    setTimeout(() => setCopiedImageToast(false), 2500);
+                    showToast('📋 Card copied to clipboard!');
+                  } catch {
+                    showToast('💡 Long-press the image to copy or save');
+                  }
+                }}
+                className="py-3 px-4 rounded-xl bg-sky-400 hover:bg-sky-300 text-slate-950 font-black text-xs sm:text-sm border-2 border-slate-900 shadow-[2px_2px_0px_#0F172A] flex items-center justify-center gap-2 transition active:scale-95"
+              >
+                <Copy className="w-4 h-4" />
+                <span>{copiedImageToast ? 'Copied!' : 'Copy Image'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const blobUrl = URL.createObjectURL(ipadExportModal.blob);
+                  const a = document.createElement('a');
+                  a.href = blobUrl;
+                  a.download = ipadExportModal.fileName;
+                  document.body.appendChild(a);
+                  a.click();
+                  setTimeout(() => {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(blobUrl);
+                  }, 1000);
+                  showToast('📥 Download initiated');
+                }}
+                className="py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold text-xs sm:text-sm border-2 border-slate-300 flex items-center justify-center gap-2 transition active:scale-95"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download File</span>
+              </button>
+            </div>
+
+            <div className="pt-2 text-center">
+              <button
+                type="button"
+                onClick={() => setIpadExportModal(null)}
+                className="text-xs text-slate-500 hover:text-slate-900 font-bold underline"
+              >
+                Done / Close Window
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

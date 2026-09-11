@@ -1,0 +1,405 @@
+<svg width="1400" height="1580" viewBox="0 0 1400 1580" xmlns="http://www.w3.org/2000/svg" style="background:#FFFFFF; font-family:system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <defs>
+    <!-- Column Gradients and Shadows -->
+    <filter id="card-shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.08" />
+    </filter>
+  </defs>
+
+  <!-- Canvas Background -->
+  <rect width="1400" height="1580" fill="#FFFFFF"/>
+
+  <!-- Main Title -->
+  <text x="700" y="70" text-anchor="middle" font-size="44" font-weight="900" fill="#2E384D" letter-spacing="2">
+    B.A.S.I.C. PH Coping Strategies
+  </text>
+
+  <!-- 5 Columns Layout -->
+  <!-- ==================== COLUMN 1: B - BELIEF ==================== -->
+  <g transform="translate(40, 110)">
+    <!-- Column Backgrounds -->
+    <rect x="0" y="320" width="250" height="230" fill="#FCE8E6" rx="12"/>
+    <line x1="10" y1="565" x2="240" y2="565" stroke="#E57373" stroke-width="2" stroke-dasharray="4 4"/>
+    <rect x="0" y="580" width="250" height="460" fill="#FDF3F2" rx="12"/>
+
+    <!-- Top Illustration: Hands holding glowing heart -->
+    <g transform="translate(45, 20)">
+      <!-- Hands -->
+      <path d="M 10 130 C 30 110 60 120 80 130 C 100 135 125 125 140 100 C 145 90 155 95 150 105 C 135 130 110 145 80 145 C 50 145 25 140 10 130 Z" fill="#F7D3C6"/>
+      <path d="M 0 140 C 20 125 50 135 70 145 C 90 150 115 140 130 115 C 135 105 145 110 140 120 C 125 145 100 160 70 160 C 40 160 15 150 0 140 Z" fill="#E8B4A2"/>
+      <!-- Pink Heart -->
+      <path d="M 80 45 C 70 15, 30 20, 35 60 C 40 90, 80 120, 80 120 C 80 120, 120 90, 125 60 C 130 20, 90 15, 80 45 Z" fill="#F8BBD0" opacity="0.95"/>
+      <path d="M 75 50 C 68 28, 38 32, 42 62 C 46 86, 75 108, 75 108 C 75 108, 104 86, 108 62 C 112 32, 82 28, 75 50 Z" fill="#F48FB1" opacity="0.8"/>
+      <!-- Sparkles -->
+      <circle cx="28" cy="40" r="3" fill="#FFFFFF"/>
+      <circle cx="125" cy="45" r="4" fill="#FFFFFF"/>
+      <polygon points="110,25 113,32 120,35 113,38 110,45 107,38 100,35 107,32" fill="#F06292"/>
+    </g>
+
+    <!-- Badge Circle & Word -->
+    <circle cx="125" cy="270" r="58" fill="#EF5350"/>
+    <text x="125" y="282" text-anchor="middle" font-size="48" font-weight="900" fill="#FFFFFF">B</text>
+    <text x="125" y="315" text-anchor="middle" font-size="20" font-weight="800" fill="#C62828">Belief</text>
+
+    <!-- Upper Description -->
+    <text x="125" y="380" text-anchor="middle" font-size="18" font-weight="700" fill="#8C1D18" width="220">
+      <tspan x="125" dy="0">Tapping on</tspan>
+      <tspan x="125" dy="28">your own beliefs</tspan>
+      <tspan x="125" dy="28">&amp; values</tspan>
+    </text>
+
+    <!-- Lower Strategy Details -->
+    <text x="20" y="615" font-size="16" font-weight="800" fill="#374151">Exercise beliefs and</text>
+    <text x="20" y="638" font-size="16" font-weight="800" fill="#374151">values by:</text>
+
+    <circle cx="26" cy="675" r="3.5" fill="#EF5350"/>
+    <text x="38" y="680" font-size="15" font-weight="600" fill="#4B5563">
+      <tspan x="38" dy="0">Reflecting on</tspan>
+      <tspan x="38" dy="22">purpose, values</tspan>
+      <tspan x="38" dy="22">and beliefs</tspan>
+    </text>
+
+    <circle cx="26" cy="765" r="3.5" fill="#EF5350"/>
+    <text x="38" y="770" font-size="15" font-weight="600" fill="#4B5563">
+      <tspan x="38" dy="0">Sharing your</tspan>
+      <tspan x="38" dy="22">thoughts &amp; emotions</tspan>
+      <tspan x="38" dy="22">with a mentor</tspan>
+    </text>
+  </g>
+
+  <!-- ==================== COLUMN 2: A - AFFECT ==================== -->
+  <g transform="translate(310, 110)">
+    <!-- Column Backgrounds -->
+    <rect x="0" y="320" width="250" height="230" fill="#FBE9E7" rx="12"/>
+    <line x1="10" y1="565" x2="240" y2="565" stroke="#FF7043" stroke-width="2" stroke-dasharray="4 4"/>
+    <rect x="0" y="580" width="250" height="460" fill="#FDF2EE" rx="12"/>
+
+    <!-- Top Illustration: Emotional Emoji Cubes -->
+    <g transform="translate(60, 20)">
+      <!-- Yellow Happy Cube -->
+      <rect x="25" y="25" width="65" height="65" rx="14" fill="#FBC02D"/>
+      <ellipse cx="45" cy="50" rx="3" ry="5" fill="#263238"/>
+      <ellipse cx="70" cy="50" rx="3" ry="5" fill="#263238"/>
+      <path d="M 45 65 Q 57.5 78 70 65" stroke="#263238" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+
+      <!-- Dark Mood Cube Below -->
+      <rect x="35" y="85" width="55" height="55" rx="12" fill="#78909C"/>
+      <path d="M 48 102 L 56 106" stroke="#263238" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M 77 102 L 69 106" stroke="#263238" stroke-width="2.5" stroke-linecap="round"/>
+      <circle cx="52" cy="112" r="2.5" fill="#263238"/>
+      <circle cx="73" cy="112" r="2.5" fill="#263238"/>
+      <path d="M 54 126 Q 62.5 116 71 126" stroke="#263238" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+      <!-- Supporting Hand Graphic -->
+      <path d="M 10 135 C 30 115 50 120 70 130 C 90 140 110 135 130 115" stroke="#F5B29D" stroke-width="8" fill="none" stroke-linecap="round"/>
+    </g>
+
+    <!-- Badge Circle & Word -->
+    <circle cx="125" cy="270" r="58" fill="#FF7043"/>
+    <text x="125" y="282" text-anchor="middle" font-size="48" font-weight="900" fill="#FFFFFF">A</text>
+    <text x="125" y="315" text-anchor="middle" font-size="20" font-weight="800" fill="#D84315">Affect</text>
+
+    <!-- Upper Description -->
+    <text x="125" y="380" text-anchor="middle" font-size="18" font-weight="700" fill="#BF360C">
+      <tspan x="125" dy="0">Expressing</tspan>
+      <tspan x="125" dy="28">emotions</tspan>
+      <tspan x="125" dy="28">&amp; feelings</tspan>
+    </text>
+
+    <!-- Lower Strategy Details -->
+    <text x="20" y="615" font-size="16" font-weight="800" fill="#374151">Express emotions by:</text>
+
+    <circle cx="26" cy="655" r="3.5" fill="#FF7043"/>
+    <text x="38" y="660" font-size="15" font-weight="600" fill="#4B5563">
+      <tspan x="38" dy="0">Drawing, writing or</tspan>
+      <tspan x="38" dy="22">journaling</tspan>
+    </text>
+
+    <circle cx="26" cy="725" r="3.5" fill="#FF7043"/>
+    <text x="38" y="730" font-size="15" font-weight="600" fill="#4B5563">
+      <tspan x="38" dy="0">Listening to music</tspan>
+    </text>
+
+    <circle cx="26" cy="775" r="3.5" fill="#FF7043"/>
+    <text x="38" y="780" font-size="15" font-weight="600" fill="#4B5563">
+      <tspan x="38" dy="0">Sharing what you</tspan>
+      <tspan x="38" dy="22">feel with a friend</tspan>
+      <tspan x="38" dy="22">or trusted adult</tspan>
+      <tspan x="38" dy="22" font-size="13" fill="#6B7280">(e.g. talking it out,</tspan>
+      <tspan x="38" dy="18" font-size="13" fill="#6B7280">crying)</tspan>
+    </text>
+  </g>
+
+  <!-- ==================== COLUMN 3: S - SOCIAL ==================== -->
+  <g transform="translate(580, 110)">
+    <!-- Column Backgrounds -->
+    <rect x="0" y="320" width="250" height="230" fill="#FFF3E0" rx="12"/>
+    <line x1="10" y1="565" x2="240" y2="565" stroke="#FFA726" stroke-width="2" stroke-dasharray="4 4"/>
+    <rect x="0" y="580" width="250" height="460" fill="#FFF8F0" rx="12"/>
+
+    <!-- Top Illustration: Handshake Partnership -->
+    <g transform="translate(45, 50)">
+      <!-- Left Hand & Cuff -->
+      <path d="M 0 60 L 40 40 C 50 45, 65 50, 75 60 L 45 90 Z" fill="#F8BBD0"/>
+      <rect x="-10" y="50" width="20" height="45" rx="5" fill="#E57373"/>
+      <!-- Right Hand & Cuff -->
+      <path d="M 160 60 L 120 40 C 110 45, 95 50, 85 60 L 115 90 Z" fill="#F5B29D"/>
+      <rect x="150" y="50" width="20" height="45" rx="5" fill="#FFB74D"/>
+      <!-- Clasping Fingers -->
+      <ellipse cx="80" cy="70" rx="28" ry="18" fill="#F09B82"/>
+      <path d="M 68 62 C 72 70 88 70 92 62" stroke="#D87A64" stroke-width="2" fill="none"/>
+      <path d="M 65 72 C 70 80 88 80 93 72" stroke="#D87A64" stroke-width="2" fill="none"/>
+      <path d="M 62 82 C 68 88 86 88 92 82" stroke="#D87A64" stroke-width="2" fill="none"/>
+    </g>
+
+    <!-- Badge Circle & Word -->
+    <circle cx="125" cy="270" r="58" fill="#FFA726"/>
+    <text x="125" y="282" text-anchor="middle" font-size="48" font-weight="900" fill="#FFFFFF">S</text>
+    <text x="125" y="315" text-anchor="middle" font-size="20" font-weight="800" fill="#E65100">Social</text>
+
+    <!-- Upper Description -->
+    <text x="125" y="380" text-anchor="middle" font-size="18" font-weight="700" fill="#E65100">
+      <tspan x="125" dy="0">Turning to people</tspan>
+      <tspan x="125" dy="28">for support &amp;</tspan>
+      <tspan x="125" dy="28">helping others</tspan>
+    </text>
+
+    <!-- Lower Strategy Details -->
+    <text x="20" y="615" font-size="16" font-weight="800" fill="#374151">Being social includes:</text>
+
+    <circle cx="26" cy="655" r="3.5" fill="#FFA726"/>
+    <text x="38" y="660" font-size="15" font-weight="600" fill="#4B5563">
+      <tspan x="38" dy="0">Sharing with</tspan>
+      <tspan x="38" dy="22">trusted adults or</tspan>
+      <tspan x="38" dy="22">friends</tspan>
+    </text>
+
+    <circle cx="26" cy="745" r="3.5" fill="#FFA726"/>
+    <text x="38" y="750" font-size="15" font-weight="600" fill="#4B5563">
+      <tspan x="38" dy="0">Staying connected</tspan>
+      <tspan x="38" dy="22">with family &amp; friends</tspan>
+    </text>
+
+    <circle cx="26" cy="815" r="3.5" fill="#FFA726"/>
+    <text x="38" y="820" font-size="15" font-weight="600" fill="#4B5563">
+      <tspan x="38" dy="0">Participating in</tspan>
+      <tspan x="38" dy="22">CCA or other social</tspan>
+      <tspan x="38" dy="22">activities</tspan>
+    </text>
+
+    <circle cx="26" cy="905" r="3.5" fill="#FFA726"/>
+    <text x="38" y="910" font-size="15" font-weight="600" fill="#4B5563">
+      <tspan x="38" dy="0">Giving help &amp;</tspan>
+      <tspan x="38" dy="22">support to others</tspan>
+    </text>
+  </g>
+
+  <!-- ==================== COLUMN 4: I - IMAGINATION ==================== -->
+  <g transform="translate(850, 110)">
+    <!-- Column Backgrounds -->
+    <rect x="0" y="320" width="250" height="230" fill="#F1F8E9" rx="12"/>
+    <line x1="10" y1="565" x2="240" y2="565" stroke="#7CB342" stroke-width="2" stroke-dasharray="4 4"/>
+    <rect x="0" y="580" width="250" height="460" fill="#F7FBF4" rx="12"/>
+
+    <!-- Top Illustration: Rainbow Hot Air Balloon over Hill -->
+    <g transform="translate(75, 20)">
+      <!-- Green Horizon Hill -->
+      <ellipse cx="50" cy="148" rx="40" ry="12" fill="#558B2F"/>
+      <circle cx="50" cy="148" r="4" fill="#33691E"/>
+
+      <!-- Basket & Ropes -->
+      <line x1="42" y1="110" x2="44" y2="122" stroke="#795548" stroke-width="1.5"/>
+      <line x1="58" y1="110" x2="56" y2="122" stroke="#795548" stroke-width="1.5"/>
+      <rect x="42" y="122" width="16" height="14" rx="2" fill="#8D6E63"/>
+
+      <!-- Balloon Body with Colorful Stripes -->
+      <path d="M 50 15 C 20 15, 20 60, 40 105 L 60 105 C 80 60, 80 15, 50 15 Z" fill="#66BB6A"/>
+      <!-- Striped Ribs -->
+      <path d="M 50 15 C 32 15, 32 60, 44 105 L 56 105 C 68 60, 68 15, 50 15 Z" fill="#42A5F5"/>
+      <path d="M 50 15 C 40 15, 40 60, 47 105 L 53 105 C 60 60, 60 15, 50 15 Z" fill="#EC407A"/>
+      <path d="M 50 15 C 45 15, 45 60, 49 105 L 51 105 C 55 60, 55 15, 50 15 Z" fill="#FFEE58"/>
+    </g>
+
+    <!-- Badge Circle & Word -->
+    <circle cx="125" cy="270" r="58" fill="#689F38"/>
+    <text x="125" y="282" text-anchor="middle" font-size="48" font-weight="900" fill="#FFFFFF">I</text>
+    <text x="125" y="315" text-anchor="middle" font-size="20" font-weight="800" fill="#33691E">Imagination</text>
+
+    <!-- Upper Description -->
+    <text x="125" y="380" text-anchor="middle" font-size="18" font-weight="700" fill="#33691E">
+      <tspan x="125" dy="0">Using</tspan>
+      <tspan x="125" dy="28">creativity &amp;</tspan>
+      <tspan x="125" dy="28">imagination</tspan>
+    </text>
+
+    <!-- Lower Strategy Details -->
+    <text x="20" y="615" font-size="16" font-weight="800" fill="#374151">This includes:</text>
+
+    <circle cx="26" cy="655" r="3.5" fill="#689F38"/>
+    <text x="38" y="660" font-size="15" font-weight="600" fill="#4B5563">
+      <tspan x="38" dy="0">Laughing</tspan>
+    </text>
+
+    <circle cx="26" cy="710" r="3.5" fill="#689F38"/>
+    <text x="38" y="715" font-size="15" font-weight="600" fill="#4B5563">
+      <tspan x="38" dy="0">Using humour</tspan>
+    </text>
+
+    <circle cx="26" cy="765" r="3.5" fill="#689F38"/>
+    <text x="38" y="770" font-size="15" font-weight="600" fill="#4B5563">
+      <tspan x="38" dy="0">Playing/making</tspan>
+      <tspan x="38" dy="22">music</tspan>
+    </text>
+
+    <circle cx="26" cy="835" r="3.5" fill="#689F38"/>
+    <text x="38" y="840" font-size="15" font-weight="600" fill="#4B5563">
+      <tspan x="38" dy="0">Watching a movie</tspan>
+    </text>
+  </g>
+
+  <!-- ==================== COLUMN 5: C - COGNITIVE ==================== -->
+  <g transform="translate(1120, 110)">
+    <!-- Column Backgrounds -->
+    <rect x="0" y="320" width="240" height="230" fill="#E1F5FE" rx="12"/>
+    <line x1="10" y1="565" x2="230" y2="565" stroke="#29B6F6" stroke-width="2" stroke-dasharray="4 4"/>
+    <rect x="0" y="580" width="240" height="460" fill="#EDF9FF" rx="12"/>
+
+    <!-- Top Illustration: Colorful Translucent Brain -->
+    <g transform="translate(45, 25)">
+      <!-- Overlapping translucent lobes -->
+      <!-- Red Lobe -->
+      <path d="M 50 85 C 30 75, 20 40, 50 35 C 70 30, 85 45, 80 75 Z" fill="#EF5350" opacity="0.85"/>
+      <!-- Blue Lobe -->
+      <path d="M 40 95 C 25 105, 30 135, 60 135 C 80 135, 85 110, 75 90 Z" fill="#1E88E5" opacity="0.85"/>
+      <!-- Yellow/Orange Lobe -->
+      <path d="M 80 40 C 95 25, 130 35, 125 70 C 120 90, 95 90, 80 75 Z" fill="#FDD835" opacity="0.85"/>
+      <!-- Green/Teal Lobe -->
+      <path d="M 80 85 C 90 70, 125 75, 135 105 C 145 130, 110 145, 85 130 Z" fill="#26A69A" opacity="0.85"/>
+      <!-- Magenta Lobe -->
+      <path d="M 70 70 C 85 55, 115 65, 115 95 C 115 115, 85 115, 65 95 Z" fill="#EC407A" opacity="0.8"/>
+    </g>
+
+    <!-- Badge Circle & Word -->
+    <circle cx="120" cy="270" r="58" fill="#039BE5"/>
+    <text x="120" y="282" text-anchor="middle" font-size="48" font-weight="900" fill="#FFFFFF">C</text>
+    <text x="120" y="315" text-anchor="middle" font-size="20" font-weight="800" fill="#01579B">Cognitive</text>
+
+    <!-- Upper Description -->
+    <text x="120" y="370" text-anchor="middle" font-size="16" font-weight="700" fill="#01579B">
+      <tspan x="120" dy="0">Using facts and</tspan>
+      <tspan x="120" dy="24">logical reasoning to</tspan>
+      <tspan x="120" dy="24">understand</tspan>
+      <tspan x="120" dy="24">situations</tspan>
+      <tspan x="120" dy="24">&amp; solve problems</tspan>
+    </text>
+
+    <!-- Lower Strategy Details -->
+    <text x="16" y="615" font-size="16" font-weight="800" fill="#374151">This includes:</text>
+
+    <circle cx="22" cy="655" r="3.5" fill="#039BE5"/>
+    <text x="32" y="660" font-size="14.5" font-weight="600" fill="#4B5563">
+      <tspan x="32" dy="0">Thinking positive/</tspan>
+      <tspan x="32" dy="20">reframing</tspan>
+    </text>
+
+    <circle cx="22" cy="720" r="3.5" fill="#039BE5"/>
+    <text x="32" y="725" font-size="14.5" font-weight="600" fill="#4B5563">
+      <tspan x="32" dy="0">Setting workable</tspan>
+      <tspan x="32" dy="20">goals</tspan>
+    </text>
+
+    <circle cx="22" cy="785" r="3.5" fill="#039BE5"/>
+    <text x="32" y="790" font-size="14.5" font-weight="600" fill="#4B5563">
+      <tspan x="32" dy="0">Looking for</tspan>
+      <tspan x="32" dy="20">strategies</tspan>
+    </text>
+
+    <circle cx="22" cy="850" r="3.5" fill="#039BE5"/>
+    <text x="32" y="855" font-size="14.5" font-weight="600" fill="#4B5563">
+      <tspan x="32" dy="0">Breaking down</tspan>
+      <tspan x="32" dy="20">the problem</tspan>
+    </text>
+
+    <circle cx="22" cy="915" r="3.5" fill="#039BE5"/>
+    <text x="32" y="920" font-size="14.5" font-weight="600" fill="#4B5563">
+      <tspan x="32" dy="0">Processing the</tspan>
+      <tspan x="32" dy="20">situation with a</tspan>
+      <tspan x="32" dy="20">trusted adult</tspan>
+    </text>
+  </g>
+
+  <!-- ==================== HORIZONTAL BOTTOM BANNER: Ph - PHYSIOLOGY ==================== -->
+  <g transform="translate(40, 1175)">
+    <!-- Lilac Banner Container -->
+    <rect x="0" y="0" width="1320" height="280" rx="16" fill="#EDE7F6" stroke="#D1C4E9" stroke-width="2"/>
+
+    <!-- Left Badge Circle & Graphic -->
+    <circle cx="150" cy="140" r="70" fill="#7E57C2"/>
+    <text x="150" y="145" text-anchor="middle" font-size="46" font-weight="900" fill="#FFFFFF">Ph</text>
+    <text x="150" y="185" text-anchor="middle" font-size="20" font-weight="800" fill="#EDE7F6">Physiology</text>
+
+    <!-- Sun & Head Profile Illustration -->
+    <g transform="translate(230, 60)">
+      <!-- Yellow Radiating Sun -->
+      <circle cx="85" cy="55" r="30" fill="#FDD835"/>
+      <!-- Sun Rays -->
+      <line x1="85" y1="12" x2="85" y2="2" stroke="#FDD835" stroke-width="4" stroke-linecap="round"/>
+      <line x1="120" y1="25" x2="128" y2="17" stroke="#FDD835" stroke-width="4" stroke-linecap="round"/>
+      <line x1="128" y1="55" x2="138" y2="55" stroke="#FDD835" stroke-width="4" stroke-linecap="round"/>
+      <line x1="50" y1="25" x2="42" y2="17" stroke="#FDD835" stroke-width="4" stroke-linecap="round"/>
+      <!-- Soft White Cloud Behind -->
+      <ellipse cx="120" cy="75" rx="35" ry="18" fill="#FFFFFF" opacity="0.9"/>
+
+      <!-- Stylized Head Silhouette Facing Sun -->
+      <path d="M 60 160 C 60 135, 75 110, 95 110 C 115 110, 125 125, 140 135 C 145 140, 150 148, 148 155 C 145 165, 130 170, 125 185 C 120 200, 125 210, 130 220 L 70 220 C 65 190, 60 175, 60 160 Z" fill="#FFAB91" opacity="0.9"/>
+    </g>
+
+    <!-- Center Heading -->
+    <text x="490" y="130" font-size="28" font-weight="900" fill="#4527A0">Taking care of</text>
+    <text x="490" y="165" font-size="28" font-weight="900" fill="#4527A0">your body</text>
+
+    <!-- Vertical Dotted Divider Line -->
+    <line x1="680" y1="35" x2="680" y2="245" stroke="#B39DDB" stroke-width="3" stroke-dasharray="6 6"/>
+
+    <!-- Right Examples Section -->
+    <text x="720" y="65" font-size="20" font-weight="800" fill="#311B92">Examples include:</text>
+
+    <!-- Examples Column 1 -->
+    <g transform="translate(720, 95)">
+      <circle cx="8" cy="12" r="4.5" fill="#7E57C2"/>
+      <text x="24" y="18" font-size="17" font-weight="600" fill="#374151">
+        <tspan font-weight="800" fill="#1F2937">Regular exercises</tspan>
+        <tspan fill="#6B7280" font-size="15"> (e.g. running/walking)</tspan>
+      </text>
+
+      <circle cx="8" cy="62" r="4.5" fill="#7E57C2"/>
+      <text x="24" y="68" font-size="17" font-weight="600" fill="#1F2937">
+        <tspan font-weight="800">Playing sports</tspan>
+      </text>
+
+      <circle cx="8" cy="112" r="4.5" fill="#7E57C2"/>
+      <text x="24" y="118" font-size="17" font-weight="600" fill="#1F2937">
+        <tspan font-weight="800">Relaxation exercises</tspan>
+      </text>
+    </g>
+
+    <!-- Examples Column 2 -->
+    <g transform="translate(1010, 95)">
+      <circle cx="8" cy="12" r="4.5" fill="#7E57C2"/>
+      <text x="24" y="18" font-size="17" font-weight="600" fill="#1F2937">
+        <tspan font-weight="800">Getting enough</tspan>
+        <tspan fill="#4B5563"> sleep &amp; rest</tspan>
+      </text>
+
+      <circle cx="8" cy="62" r="4.5" fill="#7E57C2"/>
+      <text x="24" y="68" font-size="17" font-weight="600" fill="#1F2937">
+        <tspan font-weight="800">Eating healthily</tspan>
+      </text>
+
+      <circle cx="8" cy="112" r="4.5" fill="#7E57C2"/>
+      <text x="24" y="118" font-size="17" font-weight="600" fill="#1F2937">
+        <tspan font-weight="800">Staying hydrated</tspan>
+      </text>
+    </g>
+  </g>
+</svg>

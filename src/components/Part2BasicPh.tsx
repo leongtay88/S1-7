@@ -22,6 +22,7 @@ import {
 import { BASIC_PH_DATA, TERM_4_CHALLENGES } from '../data/cceData';
 import { BasicPhCategory, GroupStrategyEntry } from '../types';
 import { BoxBreathingGuide } from './BoxBreathingGuide';
+import { BasicPhReferenceBox } from './BasicPhReferenceBox';
 import { playTapSound } from '../utils/sound';
 import { 
   recordGroupContribution, 
@@ -310,6 +311,12 @@ export const Part2BasicPh: React.FC = () => {
                 Selected: {activeChallenge.title}
               </h4>
             </div>
+
+            {/* Reference Infographic: BASIC-Ph.png */}
+            <BasicPhReferenceBox
+              activeChannel={newStrategyChannel}
+              onSelectChannel={(cat) => setNewStrategyChannel(cat as BasicPhCategory)}
+            />
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
