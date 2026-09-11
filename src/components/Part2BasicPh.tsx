@@ -25,6 +25,7 @@ import { BoxBreathingGuide } from './BoxBreathingGuide';
 import { playTapSound } from '../utils/sound';
 import { 
   recordGroupContribution, 
+  saveNewGroupEntry,
   deleteGroupEntry, 
   subscribeToSync 
 } from '../utils/sessionStore';
@@ -50,17 +51,29 @@ export const Part2BasicPh: React.FC = () => {
     return [];
   });
 
-  // Sync with sessionStore events
+  // Sync with sessionStore and live remote events
   useEffect(() => {
+    const handleStorage = () => {
+      const saved = localStorage.getItem('s17_group_strategies');
+      if (saved) {
+        try { setGroupEntries(JSON.parse(saved)); } catch {}
+      }
+    };
+
+    window.addEventListener('storage', handleStorage);
+
     const unsubscribe = subscribeToSync((action) => {
-      if (action === 'GROUP_ENTRY_DELETED' || action === 'STORE_UPDATE') {
+      if (action === 'GROUP_ENTRY_DELETED' || action === 'GROUP_ENTRY_ADDED' || action === 'STORE_UPDATE') {
         const saved = localStorage.getItem('s17_group_strategies');
         if (saved) {
           try { setGroupEntries(JSON.parse(saved)); } catch {}
         }
       }
     });
-    return () => unsubscribe();
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      unsubscribe();
+    };
   }, []);
 
   // New Group Strategy Form State
@@ -94,10 +107,8 @@ export const Part2BasicPh: React.FC = () => {
       createdAt: Date.now(),
     };
 
-    const updated = [newEntry, ...groupEntries];
-    setGroupEntries(updated);
-    localStorage.setItem('s17_group_strategies', JSON.stringify(updated));
-    recordGroupContribution(groupName);
+    saveNewGroupEntry(newEntry);
+    setGroupEntries((prev) => [newEntry, ...prev.filter((g) => g.id !== newEntry.id)]);
 
     setGroupName('');
     setCurrentStrategiesList([]);

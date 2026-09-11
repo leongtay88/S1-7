@@ -26,7 +26,11 @@ import {
   Activity,
   Shuffle,
   ArrowUpDown,
-  Clipboard
+  Clipboard,
+  Radio,
+  Wifi,
+  WifiOff,
+  RefreshCw
 } from 'lucide-react';
 import QRCodeLib from 'qrcode';
 import { 
@@ -48,7 +52,11 @@ import {
   subscribeToSync,
   INITIAL_S17_ROSTER,
   setRosterFromNamesText,
-  buildStudentJoinUrl
+  buildStudentJoinUrl,
+  subscribeToLiveStatus,
+  pollRecentEvents,
+  getLiveSyncRoom,
+  setLiveSyncRoom
 } from '../utils/sessionStore';
 import { playTapSound, playResetSound } from '../utils/sound';
 
@@ -107,15 +115,23 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onClose, onS
   const [newStudentName, setNewStudentName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Live Sync Engine state
+  const [liveStatus, setLiveStatus] = useState<'connected' | 'connecting' | 'disconnected' | 'error'>('connecting');
+  const [liveUpdatesCount, setLiveUpdatesCount] = useState(0);
+  const [roomCode, setRoomCode] = useState(getLiveSyncRoom);
+  const [showRoomModal, setShowRoomModal] = useState(false);
+  const [roomInputVal, setRoomInputVal] = useState(getLiveSyncRoom);
+  const [isCatchingUp, setIsCatchingUp] = useState(false);
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // Dynamic student join URL embedding the class roster for static hosting (GitHub Pages)
+  // Dynamic student join URL embedding the class roster and live sync room for static hosting (GitHub Pages)
   const studentJoinUrl = useMemo(() => {
     return buildStudentJoinUrl(roster);
-  }, [roster]);
+  }, [roster, roomCode]);
 
   // Generate QR code whenever the student join URL / roster updates
   useEffect(() => {
@@ -139,34 +155,110 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onClose, onS
       });
   }, [studentJoinUrl]);
 
-  // Subscribe to real-time session sync events across tabs
+  // Subscribe to live cloud sync status
   useEffect(() => {
-    const unsubscribe = subscribeToSync((action) => {
-      if (action === 'ROSTER_UPDATED' || action === 'STUDENT_CHANGED' || action === 'STUDENT_LOGOUT') {
+    const unsubStatus = subscribeToLiveStatus((status, details) => {
+      setLiveStatus(status);
+      setLiveUpdatesCount(details.count);
+      setRoomCode(details.room);
+    });
+    return () => unsubStatus();
+  }, []);
+
+  // Subscribe to real-time session sync events across tabs and student devices
+  useEffect(() => {
+    const unsubscribe = subscribeToSync((action, payload) => {
+      if (
+        action === 'ROSTER_UPDATED' || 
+        action === 'STUDENT_CHANGED' || 
+        action === 'STUDENT_CHECK_IN' ||
+        action === 'STUDENT_JOINED_REMOTE' ||
+        action === 'STUDENT_LOGOUT' ||
+        action === 'VOTE_SENTIMENT' ||
+        action === 'REFLECTION_SAVED'
+      ) {
         setRoster(getStoredRoster());
       }
-      if (action === 'TALLY_UPDATED' || action === 'POLL_RESET') {
+      if (action === 'TALLY_UPDATED' || action === 'POLL_RESET' || action === 'VOTE_SENTIMENT') {
         setTally(getSentimentTally());
       }
-      if (action === 'MEMORY_DELETED' || action === 'STORE_UPDATE') {
+      if (action === 'MEMORY_DELETED' || action === 'MEMORY_ADDED' || action === 'MEMORY_NOTE_ADDED' || action === 'STORE_UPDATE') {
         const saved = localStorage.getItem('s17_memories');
         if (saved) {
           try { setMemories(JSON.parse(saved)); } catch {}
         }
+        setRoster(getStoredRoster());
       }
-      if (action === 'GROUP_ENTRY_DELETED') {
+      if (action === 'GROUP_ENTRY_DELETED' || action === 'GROUP_ENTRY_ADDED') {
         const saved = localStorage.getItem('s17_group_strategies');
         if (saved) {
           try { setGroupEntries(JSON.parse(saved)); } catch {}
         }
+        setRoster(getStoredRoster());
       }
-      if (action === 'CARD_ADDED' || action === 'CARD_DELETED') {
+      if (action === 'CARD_ADDED' || action === 'CARD_DELETED' || action === 'CARD_CREATED') {
         setFinishWellCards(getStoredCards());
+        setRoster(getStoredRoster());
+      }
+
+      // Real-time toast feedback for the teacher host console
+      if (action === 'STUDENT_CHECK_IN' || action === 'STUDENT_JOINED_REMOTE') {
+        const s = payload as any;
+        showToast(`👤 ${s?.name || 'A student'} joined the session!`);
+      } else if (action === 'VOTE_SENTIMENT') {
+        const p = payload as any;
+        showToast(`📊 Vote received from ${p?.studentName || 'a student'}: ${p?.vote || ''}`);
+      } else if (action === 'MEMORY_NOTE_ADDED' || action === 'MEMORY_ADDED') {
+        const m = payload as any;
+        showToast(`📝 New Memory note posted by ${m?.author || 'a student'}!`);
+      } else if (action === 'GROUP_ENTRY_ADDED') {
+        const g = payload as any;
+        showToast(`💡 Group strategy added by ${g?.groupName || 'a student group'}!`);
+      } else if (action === 'CARD_ADDED') {
+        const c = payload as any;
+        showToast(`💌 Finish Well card sent by ${c?.partnerName || 'a student'} to ${c?.recipientName || 'a friend'}!`);
+      } else if (action === 'REFLECTION_SAVED') {
+        const r = payload as any;
+        showToast(`🌟 Reflection committed by ${r?.studentName || 'a student'}!`);
       }
     });
 
     return () => unsubscribe();
   }, []);
+
+  const handleForceCatchUp = async () => {
+    playTapSound();
+    setIsCatchingUp(true);
+    try {
+      const count = await pollRecentEvents();
+      setRoster(getStoredRoster());
+      setTally(getSentimentTally());
+      const savedMem = localStorage.getItem('s17_memories');
+      if (savedMem) {
+        try { setMemories(JSON.parse(savedMem)); } catch {}
+      }
+      const savedGrp = localStorage.getItem('s17_group_strategies');
+      if (savedGrp) {
+        try { setGroupEntries(JSON.parse(savedGrp)); } catch {}
+      }
+      setFinishWellCards(getStoredCards());
+      showToast(`🔄 Live sync refreshed! Received ${count} recent event(s).`);
+    } catch {
+      showToast('⚠️ Could not refresh live sync.');
+    } finally {
+      setIsCatchingUp(false);
+    }
+  };
+
+  const handleSaveRoomCode = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!roomInputVal.trim()) return;
+    playTapSound();
+    setLiveSyncRoom(roomInputVal.trim());
+    setRoomCode(roomInputVal.trim());
+    setShowRoomModal(false);
+    showToast(`🔑 Classroom Live Sync Room updated to: ${roomInputVal.trim()}`);
+  };
 
   const handleCopyLink = () => {
     playTapSound();
@@ -496,10 +588,33 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onClose, onS
       {/* Header & Mode Switcher */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-slate-800">
         <div>
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-amber-400 text-slate-950 mb-3 shadow-xs">
-            <ShieldCheck className="w-4 h-4" />
-            <span>Teacher Facilitator Host Console</span>
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-amber-400 text-slate-950 shadow-xs">
+              <ShieldCheck className="w-4 h-4" />
+              <span>Teacher Facilitator Host Console</span>
+            </div>
+
+            {/* Live Cloud Sync Indicator */}
+            <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold border ${
+              liveStatus === 'connected'
+                ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/50'
+                : liveStatus === 'connecting'
+                ? 'bg-amber-950/80 text-amber-300 border-amber-500/50 animate-pulse'
+                : 'bg-rose-950/80 text-rose-300 border-rose-500/50'
+            }`}>
+              <span className={`w-2 h-2 rounded-full ${
+                liveStatus === 'connected' ? 'bg-emerald-400 animate-ping' : 'bg-rose-400'
+              }`} />
+              <span>
+                {liveStatus === 'connected'
+                  ? `Live Sync Connected (${liveUpdatesCount} updates)`
+                  : liveStatus === 'connecting'
+                  ? 'Connecting Live Sync...'
+                  : 'Live Sync Offline'}
+              </span>
+            </div>
           </div>
+
           <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight flex items-center gap-3">
             Class S1-7 Session Host
           </h2>
@@ -509,6 +624,29 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onClose, onS
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={handleForceCatchUp}
+            disabled={isCatchingUp}
+            className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-sm flex items-center gap-2 border border-slate-700 transition active:scale-95 shadow-xs"
+            title="Force refresh recent student actions from the live cloud relay"
+          >
+            <RefreshCw className={`w-4 h-4 text-emerald-400 ${isCatchingUp ? 'animate-spin' : ''}`} />
+            <span>{isCatchingUp ? 'Syncing...' : 'Live Sync Refresh'}</span>
+          </button>
+
+          <button
+            onClick={() => {
+              playTapSound();
+              setRoomInputVal(roomCode);
+              setShowRoomModal(true);
+            }}
+            className="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 font-mono text-xs font-bold flex items-center gap-1.5 border border-slate-700 transition active:scale-95"
+            title="Classroom Live Room Channel"
+          >
+            <Radio className="w-3.5 h-3.5 text-amber-400" />
+            <span>ROOM: {roomCode}</span>
+          </button>
+
           {onSwitchToStudent && (
             <button
               onClick={() => {
@@ -1267,6 +1405,62 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onClose, onS
                 Yes, Reset Poll
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Room Code Configuration Modal */}
+      {showRoomModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-slate-900 border-2 border-slate-700 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-amber-400 font-bold">
+                <Radio className="w-5 h-5" />
+                <h3 className="text-xl font-black text-white">Classroom Live Room Code</h3>
+              </div>
+              <button
+                onClick={() => setShowRoomModal(false)}
+                className="text-slate-400 hover:text-white text-lg font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              All student devices scanning the QR code will automatically connect to this live sync room code. Change this if you are running multiple concurrent classes.
+            </p>
+
+            <form onSubmit={handleSaveRoomCode} className="space-y-4 pt-2">
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-1">
+                  Room Identifier (Letters, numbers, dashes):
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={roomInputVal}
+                  onChange={(e) => setRoomInputVal(e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, ''))}
+                  placeholder="e.g. s17-cce-term4"
+                  className="w-full bg-slate-950 border-2 border-slate-700 focus:border-amber-400 px-4 py-3 rounded-2xl text-sm font-mono text-amber-300 focus:outline-hidden"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowRoomModal(false)}
+                  className="px-4 py-2.5 rounded-xl text-slate-400 hover:text-white font-bold text-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs shadow-md transition active:scale-95"
+                >
+                  Save & Update QR Code
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

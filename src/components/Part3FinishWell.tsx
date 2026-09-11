@@ -1098,7 +1098,7 @@ export const Part3FinishWell: React.FC = () => {
                   </div>
                   <div>
                     <label className="block text-sm sm:text-base font-black text-slate-900 mb-1.5">
-                      Sec (Class):
+                      Class:
                     </label>
                     <input
                       type="text"

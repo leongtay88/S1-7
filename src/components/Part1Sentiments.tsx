@@ -7,6 +7,7 @@ import { S17Logo } from './S17Logo';
 import { 
   recordSentimentVote, 
   recordMemoryNoteAdded, 
+  saveNewMemoryNote,
   deleteMemoryNote, 
   getSentimentTally, 
   getCurrentStudent, 
@@ -51,15 +52,25 @@ export const Part1Sentiments: React.FC = () => {
   const [newNoteCategory, setNewNoteCategory] = useState<MemoryCategory>('supporting');
   const [showAddModal, setShowAddModal] = useState(false);
 
-  // Sync with cross-tab events
+  // Sync with cross-tab and remote live events
   useEffect(() => {
+    const handleStorage = () => {
+      const saved = localStorage.getItem('s17_memories');
+      if (saved) {
+        try { setMemories(JSON.parse(saved)); } catch {}
+      }
+      setTally(getSentimentTally());
+    };
+
+    window.addEventListener('storage', handleStorage);
+
     const unsubscribe = subscribeToSync((action, payload) => {
       if (action === 'POLL_RESET') {
         setSelectedSentiment(null);
         setTally({ manageable: 0, mixed: 0, heavy: 0 });
       } else if (action === 'TALLY_UPDATED') {
         setTally(getSentimentTally());
-      } else if (action === 'MEMORY_DELETED' || action === 'MEMORY_ADDED') {
+      } else if (action === 'MEMORY_DELETED' || action === 'MEMORY_ADDED' || action === 'MEMORY_NOTE_ADDED' || action === 'STORE_UPDATE') {
         const saved = localStorage.getItem('s17_memories');
         if (saved) {
           try { setMemories(JSON.parse(saved)); } catch {}
@@ -72,12 +83,11 @@ export const Part1Sentiments: React.FC = () => {
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      unsubscribe();
+    };
   }, []);
-
-  useEffect(() => {
-    localStorage.setItem('s17_memories', JSON.stringify(memories));
-  }, [memories]);
 
   const handleVote = (type: SentimentType) => {
     playTapSound();
@@ -105,10 +115,8 @@ export const Part1Sentiments: React.FC = () => {
       color: randomColor,
     };
 
-    const updated = [newNote, ...memories];
-    setMemories(updated);
-    localStorage.setItem('s17_memories', JSON.stringify(updated));
-    recordMemoryNoteAdded(author);
+    saveNewMemoryNote(newNote);
+    setMemories((prev) => [newNote, ...prev.filter((m) => m.id !== newNote.id)]);
 
     setNewNoteText('');
     setNewNoteAuthor(currentStudent ? currentStudent.name : '');

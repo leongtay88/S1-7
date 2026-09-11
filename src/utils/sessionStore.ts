@@ -8,6 +8,23 @@ import {
   SessionConfig 
 } from '../types';
 import { STARTER_MEMORIES } from '../data/cceData';
+import { 
+  publishLiveAction, 
+  subscribeToRemoteActions, 
+  startLiveSync, 
+  getLiveSyncRoom, 
+  pollRecentEvents 
+} from './liveSync';
+
+export { 
+  startLiveSync, 
+  stopLiveSync, 
+  reconnectSync, 
+  getLiveSyncRoom, 
+  setLiveSyncRoom, 
+  subscribeToLiveStatus, 
+  pollRecentEvents 
+} from './liveSync';
 
 export const INITIAL_S17_ROSTER: { id: string; name: string }[] = [
   { id: 's-01', name: 'Sarah Lim Zhi Xuan' },
@@ -52,7 +69,7 @@ if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
   }
 }
 
-export const notifySync = (action: string, payload?: unknown) => {
+export const notifySync = (action: string, payload?: unknown, options?: { skipRemotePublish?: boolean }) => {
   if (channel) {
     try {
       channel.postMessage({ action, payload, timestamp: Date.now() });
@@ -63,6 +80,11 @@ export const notifySync = (action: string, payload?: unknown) => {
   // Also dispatch a custom window event for same-tab reactivity
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('s17_store_update', { detail: { action, payload } }));
+  }
+
+  // Cross-device live sync over WebSocket / cloud pubsub
+  if (!options?.skipRemotePublish) {
+    publishLiveAction(action, payload).catch(() => {});
   }
 };
 
@@ -96,6 +118,179 @@ export const subscribeToSync = (callback: (action: string, payload: unknown) => 
     }
   };
 };
+
+/**
+ * Applies incoming live action received from remote peer/student device
+ */
+export const applyIncomingRemoteAction = (action: string, payload: any) => {
+  try {
+    if (action === 'STUDENT_CHANGED' || action === 'STUDENT_CHECK_IN') {
+      const studentData = payload as StudentRosterItem;
+      if (studentData && (studentData.id || studentData.name)) {
+        const roster = getStoredRoster();
+        const existing = roster.find(
+          (s) => s.id === studentData.id || s.name.trim().toLowerCase() === studentData.name?.trim().toLowerCase()
+        );
+        if (existing) {
+          existing.hasJoined = true;
+          if (!existing.joinedAt) existing.joinedAt = studentData.joinedAt || Date.now();
+          calculateAndUpdateScores(roster);
+          saveRoster(roster, { skipRemotePublish: true });
+          notifySync('STUDENT_JOINED_REMOTE', existing, { skipRemotePublish: true });
+        }
+      }
+    } else if (action === 'VOTE_SENTIMENT') {
+      const { vote, prevVote, studentId, studentName } = payload || {};
+      if (vote) {
+        const tally = getSentimentTally();
+        if (prevVote && (tally as any)[prevVote] !== undefined) {
+          (tally as any)[prevVote] = Math.max(0, (tally as any)[prevVote] - 1);
+        }
+        if ((tally as any)[vote] !== undefined) {
+          (tally as any)[vote] = ((tally as any)[vote] || 0) + 1;
+        }
+        saveSentimentTally(tally, { skipRemotePublish: true });
+
+        const roster = getStoredRoster();
+        const student = roster.find(
+          (s) => (studentId && s.id === studentId) || (studentName && s.name.trim().toLowerCase() === studentName.trim().toLowerCase())
+        );
+        if (student) {
+          student.hasJoined = true;
+          if (!student.joinedAt) student.joinedAt = Date.now();
+          student.sentimentVote = vote;
+          student.sentimentTime = Date.now();
+          calculateAndUpdateScores(roster);
+          saveRoster(roster, { skipRemotePublish: true });
+        }
+        notifySync('TALLY_UPDATED', tally, { skipRemotePublish: true });
+        notifySync('ROSTER_UPDATED', roster, { skipRemotePublish: true });
+      }
+    } else if (action === 'TALLY_UPDATED') {
+      if (payload && typeof payload === 'object') {
+        saveSentimentTally(payload as any, { skipRemotePublish: true });
+      }
+    } else if (action === 'MEMORY_NOTE_ADDED' || action === 'MEMORY_ADDED') {
+      const note = payload as MemoryNote;
+      if (note && note.id && note.text) {
+        const saved = localStorage.getItem('s17_memories');
+        let memories: MemoryNote[] = [];
+        if (saved) {
+          try { memories = JSON.parse(saved); } catch {}
+        }
+        if (!memories.some((m) => m.id === note.id)) {
+          const updated = [note, ...memories];
+          localStorage.setItem('s17_memories', JSON.stringify(updated));
+
+          // Update student roster score
+          if (note.author) {
+            const roster = getStoredRoster();
+            const student = roster.find((s) => s.name.trim().toLowerCase() === note.author.trim().toLowerCase());
+            if (student) {
+              student.hasJoined = true;
+              student.memoryNoteCount = (student.memoryNoteCount || 0) + 1;
+              calculateAndUpdateScores(roster);
+              saveRoster(roster, { skipRemotePublish: true });
+            }
+          }
+          notifySync('MEMORY_ADDED', note, { skipRemotePublish: true });
+          notifySync('STORE_UPDATE', null, { skipRemotePublish: true });
+        }
+      }
+    } else if (action === 'GROUP_ENTRY_ADDED') {
+      const entry = payload as GroupStrategyEntry;
+      if (entry && entry.id && entry.groupName) {
+        const saved = localStorage.getItem('s17_group_strategies');
+        let entries: GroupStrategyEntry[] = [];
+        if (saved) {
+          try { entries = JSON.parse(saved); } catch {}
+        }
+        if (!entries.some((g) => g.id === entry.id)) {
+          const updated = [entry, ...entries];
+          localStorage.setItem('s17_group_strategies', JSON.stringify(updated));
+
+          const roster = getStoredRoster();
+          const student = roster.find((s) => entry.groupName.toLowerCase().includes(s.name.toLowerCase()));
+          if (student) {
+            student.hasJoined = true;
+            student.groupContributionsCount = (student.groupContributionsCount || 0) + 1;
+            calculateAndUpdateScores(roster);
+            saveRoster(roster, { skipRemotePublish: true });
+          }
+          notifySync('GROUP_ENTRY_ADDED', entry, { skipRemotePublish: true });
+        }
+      }
+    } else if (action === 'CARD_ADDED' || action === 'CARD_CREATED') {
+      const card = payload as FinishWellCardData;
+      if (card && card.id) {
+        const cards = getStoredCards();
+        if (!cards.some((c) => c.id === card.id)) {
+          const updated = [card, ...cards];
+          localStorage.setItem('s17_finish_well_cards', JSON.stringify(updated));
+
+          const roster = getStoredRoster();
+          const sender = roster.find((s) => s.name.trim().toLowerCase() === card.partnerName.trim().toLowerCase());
+          if (sender) {
+            sender.hasJoined = true;
+            sender.cardsSentCount = (sender.cardsSentCount || 0) + 1;
+            sender.cardRecipientName = card.recipientName;
+            sender.cardSnippet = card.getThroughWhen || card.youAre;
+            calculateAndUpdateScores(roster);
+            saveRoster(roster, { skipRemotePublish: true });
+          }
+          notifySync('CARD_ADDED', card, { skipRemotePublish: true });
+        }
+      }
+    } else if (action === 'REFLECTION_SAVED') {
+      const { reflection, studentId, studentName } = payload || {};
+      if (reflection) {
+        const roster = getStoredRoster();
+        const student = roster.find(
+          (s) => (studentId && s.id === studentId) || (studentName && s.name.trim().toLowerCase() === studentName.trim().toLowerCase())
+        );
+        if (student) {
+          student.hasJoined = true;
+          student.reflectionCompleted = true;
+          student.reflectionChannel = reflection.basicPhCommitment?.channel;
+          student.reflectionText = reflection.basicPhCommitment?.description;
+          calculateAndUpdateScores(roster);
+          saveRoster(roster, { skipRemotePublish: true });
+        }
+        notifySync('REFLECTION_SAVED', reflection, { skipRemotePublish: true });
+      }
+    } else if (action === 'POLL_RESET') {
+      const zeroTally = { manageable: 0, mixed: 0, heavy: 0 };
+      localStorage.setItem('s17_sentiment_tally', JSON.stringify(zeroTally));
+      localStorage.removeItem('s17_user_sentiment');
+      const roster = getStoredRoster();
+      roster.forEach((s) => {
+        delete s.sentimentVote;
+        delete s.sentimentTime;
+      });
+      calculateAndUpdateScores(roster);
+      saveRoster(roster, { skipRemotePublish: true });
+      notifySync('POLL_RESET', zeroTally, { skipRemotePublish: true });
+    } else if (action === 'ROSTER_UPDATED') {
+      if (Array.isArray(payload)) {
+        localStorage.setItem('s17_student_roster', JSON.stringify(payload));
+        notifySync('ROSTER_UPDATED', payload, { skipRemotePublish: true });
+      }
+    } else if (action === 'TRIGGER_CELEBRATION') {
+      notifySync('TRIGGER_CELEBRATION', payload, { skipRemotePublish: true });
+    }
+  } catch (err) {
+    console.error('Error applying remote action', err);
+  }
+};
+
+// Start listening for remote cloud actions automatically in browser environments
+if (typeof window !== 'undefined') {
+  subscribeToRemoteActions(applyIncomingRemoteAction);
+  // Boot live sync
+  setTimeout(() => {
+    startLiveSync();
+  }, 100);
+}
 
 // STORAGE HELPERS - Maintains active S1-7 student namelist
 export const getStoredRoster = (): StudentRosterItem[] => {
@@ -186,10 +381,10 @@ export const getStoredRoster = (): StudentRosterItem[] => {
   return initial;
 };
 
-export const saveRoster = (roster: StudentRosterItem[]) => {
+export const saveRoster = (roster: StudentRosterItem[], options?: { skipRemotePublish?: boolean }) => {
   if (typeof window === 'undefined') return;
   localStorage.setItem('s17_student_roster', JSON.stringify(roster));
-  notifySync('ROSTER_UPDATED', roster);
+  notifySync('ROSTER_UPDATED', roster, options);
 };
 
 /**
@@ -270,14 +465,15 @@ export const decodeRosterFromParam = (param: string): string[] => {
 };
 
 /**
- * Build a full student join URL containing the encoded class list for GitHub Pages
+ * Build a full student join URL containing the encoded class list and live sync room for GitHub Pages
  */
 export const buildStudentJoinUrl = (roster: StudentRosterItem[]): string => {
   if (typeof window === 'undefined') return '';
   const origin = window.location.origin;
   const pathname = window.location.pathname;
   const encoded = encodeRosterToParam(roster);
-  const base = `${origin}${pathname}?mode=student`;
+  const room = getLiveSyncRoom();
+  const base = `${origin}${pathname}?mode=student&room=${encodeURIComponent(room)}`;
   return encoded ? `${base}&r=${encodeURIComponent(encoded)}` : base;
 };
 
@@ -423,6 +619,8 @@ export const setCurrentStudent = (studentId: string | null) => {
       calculateAndUpdateScores(roster);
       saveRoster(roster);
     }
+    // Broadcast student check in to teacher host screen
+    notifySync('STUDENT_CHECK_IN', student);
   }
   notifySync('STUDENT_CHANGED', student);
 };
@@ -464,10 +662,10 @@ export const getSentimentTally = (): { manageable: number; mixed: number; heavy:
   return { manageable: 0, mixed: 0, heavy: 0 };
 };
 
-export const saveSentimentTally = (tally: { manageable: number; mixed: number; heavy: number }) => {
+export const saveSentimentTally = (tally: { manageable: number; mixed: number; heavy: number }, options?: { skipRemotePublish?: boolean }) => {
   if (typeof window === 'undefined') return;
   localStorage.setItem('s17_sentiment_tally', JSON.stringify(tally));
-  notifySync('TALLY_UPDATED', tally);
+  notifySync('TALLY_UPDATED', tally, options);
 };
 
 export const resetSentimentPoll = () => {
@@ -491,8 +689,19 @@ export const resetSentimentPoll = () => {
 // RECORD STUDENT ACTIONS
 export const recordSentimentVote = (type: SentimentType, studentId?: string) => {
   const currentId = studentId || localStorage.getItem('s17_current_student_id');
+  const roster = getStoredRoster();
+  const student = currentId ? roster.find((s) => s.id === currentId) : getCurrentStudent();
   const tally = getSentimentTally();
   const prevUserVote = localStorage.getItem('s17_user_sentiment') as SentimentType | null;
+
+  // Broadcast specific vote payload across devices
+  notifySync('VOTE_SENTIMENT', {
+    vote: type,
+    prevVote: prevUserVote,
+    studentId: currentId || student?.id,
+    studentName: student?.name,
+    time: Date.now(),
+  });
 
   if (prevUserVote && prevUserVote !== type) {
     tally[prevUserVote] = Math.max(0, tally[prevUserVote] - 1);
@@ -501,18 +710,17 @@ export const recordSentimentVote = (type: SentimentType, studentId?: string) => 
     tally[type] = tally[type] + 1;
   }
   localStorage.setItem('s17_user_sentiment', type);
-  saveSentimentTally(tally);
+  saveSentimentTally(tally, { skipRemotePublish: true });
 
   if (currentId) {
-    const roster = getStoredRoster();
-    const student = roster.find((s) => s.id === currentId);
-    if (student) {
-      student.hasJoined = true;
-      if (!student.joinedAt) student.joinedAt = Date.now();
-      student.sentimentVote = type;
-      student.sentimentTime = Date.now();
+    const sObj = roster.find((s) => s.id === currentId);
+    if (sObj) {
+      sObj.hasJoined = true;
+      if (!sObj.joinedAt) sObj.joinedAt = Date.now();
+      sObj.sentimentVote = type;
+      sObj.sentimentTime = Date.now();
       calculateAndUpdateScores(roster);
-      saveRoster(roster);
+      saveRoster(roster, { skipRemotePublish: true });
     }
   }
 };
@@ -530,6 +738,18 @@ export const recordMemoryNoteAdded = (authorName: string) => {
   }
 };
 
+export const saveNewMemoryNote = (note: MemoryNote) => {
+  const saved = localStorage.getItem('s17_memories');
+  let memories: MemoryNote[] = [];
+  if (saved) {
+    try { memories = JSON.parse(saved); } catch {}
+  }
+  const updated = [note, ...memories.filter((m) => m.id !== note.id)];
+  localStorage.setItem('s17_memories', JSON.stringify(updated));
+  recordMemoryNoteAdded(note.author);
+  notifySync('MEMORY_NOTE_ADDED', note);
+};
+
 export const recordGroupContribution = (studentNameOrGroup: string) => {
   const roster = getStoredRoster();
   const student = roster.find((s) => studentNameOrGroup.toLowerCase().includes(s.name.toLowerCase())) 
@@ -541,6 +761,18 @@ export const recordGroupContribution = (studentNameOrGroup: string) => {
     calculateAndUpdateScores(roster);
     saveRoster(roster);
   }
+};
+
+export const saveNewGroupEntry = (entry: GroupStrategyEntry) => {
+  const saved = localStorage.getItem('s17_group_strategies');
+  let entries: GroupStrategyEntry[] = [];
+  if (saved) {
+    try { entries = JSON.parse(saved); } catch {}
+  }
+  const updated = [entry, ...entries.filter((g) => g.id !== entry.id)];
+  localStorage.setItem('s17_group_strategies', JSON.stringify(updated));
+  recordGroupContribution(entry.groupName);
+  notifySync('GROUP_ENTRY_ADDED', entry);
 };
 
 export const recordFinishWellCardSent = (card: FinishWellCardData) => {
@@ -566,19 +798,24 @@ export const recordFinishWellCardSent = (card: FinishWellCardData) => {
 
 export const recordIndividualReflection = (reflection: IndividualReflectionData, studentId?: string) => {
   const currentId = studentId || localStorage.getItem('s17_current_student_id');
+  const roster = getStoredRoster();
+  const student = currentId ? roster.find((s) => s.id === currentId) : getCurrentStudent();
   if (currentId) {
-    const roster = getStoredRoster();
-    const student = roster.find((s) => s.id === currentId);
-    if (student) {
-      student.reflectionCompleted = true;
-      student.reflectionChannel = reflection.basicPhCommitment.channel;
-      student.reflectionText = reflection.basicPhCommitment.description;
-      student.hasJoined = true;
+    const sObj = roster.find((s) => s.id === currentId);
+    if (sObj) {
+      sObj.reflectionCompleted = true;
+      sObj.reflectionChannel = reflection.basicPhCommitment.channel;
+      sObj.reflectionText = reflection.basicPhCommitment.description;
+      sObj.hasJoined = true;
       calculateAndUpdateScores(roster);
       saveRoster(roster);
     }
   }
-  notifySync('REFLECTION_SAVED', reflection);
+  notifySync('REFLECTION_SAVED', {
+    reflection,
+    studentId: currentId,
+    studentName: student?.name,
+  });
 };
 
 // GET ALL CARDS
