@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   QrCode, 
   Users, 
@@ -47,7 +47,8 @@ import {
   getStoredCards,
   subscribeToSync,
   INITIAL_S17_ROSTER,
-  setRosterFromNamesText
+  setRosterFromNamesText,
+  buildStudentJoinUrl
 } from '../utils/sessionStore';
 import { playTapSound, playResetSound } from '../utils/sound';
 
@@ -111,11 +112,14 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onClose, onS
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // Generate QR code for student join URL
+  // Dynamic student join URL embedding the class roster for static hosting (GitHub Pages)
+  const studentJoinUrl = useMemo(() => {
+    return buildStudentJoinUrl(roster);
+  }, [roster]);
+
+  // Generate QR code whenever the student join URL / roster updates
   useEffect(() => {
-    const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    const path = typeof window !== 'undefined' ? window.location.pathname : '';
-    const studentJoinUrl = `${origin}${path}?mode=student&session=s17`;
+    if (!studentJoinUrl) return;
 
     QRCodeLib.toDataURL(studentJoinUrl, {
       width: 400,
@@ -124,11 +128,17 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onClose, onS
         dark: '#0F172A',
         light: '#FFFFFF',
       },
-      errorCorrectionLevel: 'H',
+      errorCorrectionLevel: 'M',
     })
       .then((url) => setQrCodeDataUrl(url))
-      .catch((err) => console.error('Failed to generate QR code', err));
-  }, []);
+      .catch((err) => {
+        console.warn('QR code fallback to base URL', err);
+        const fallbackUrl = typeof window !== 'undefined'
+          ? `${window.location.origin}${window.location.pathname}?mode=student&session=s17`
+          : '';
+        QRCodeLib.toDataURL(fallbackUrl, { width: 400, margin: 2 }).then(setQrCodeDataUrl);
+      });
+  }, [studentJoinUrl]);
 
   // Subscribe to real-time session sync events across tabs
   useEffect(() => {
@@ -159,16 +169,12 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onClose, onS
     return () => unsubscribe();
   }, []);
 
-  const studentJoinUrl = typeof window !== 'undefined' 
-    ? `${window.location.origin}${window.location.pathname}?mode=student` 
-    : '';
-
   const handleCopyLink = () => {
     playTapSound();
     if (navigator.clipboard && studentJoinUrl) {
       navigator.clipboard.writeText(studentJoinUrl);
       setCopiedLink(true);
-      showToast('📋 Student Join link copied to clipboard!');
+      showToast('📋 Student Join link copied (includes class list for dropdowns)!');
       setTimeout(() => setCopiedLink(false), 2500);
     }
   };
@@ -231,7 +237,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onClose, onS
     showToast(`✅ Added "${newStudent.name}" to class roster.`);
   };
 
-  // Class list management: File upload (.csv or .txt)
+  // Class list management: File upload (.csv, .tsv, or .txt)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -244,47 +250,84 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onClose, onS
       const lines = text.split(/[\r\n]+/);
       const parsedNames: string[] = [];
 
-      lines.forEach((line) => {
-        const cleaned = line.replace(/^[0-9]+[.,\s]+/, '').trim(); // Remove leading numbers if present
-        if (cleaned && !cleaned.toLowerCase().includes('student name') && !cleaned.toLowerCase().includes('index')) {
-          // If comma separated row, grab first non-empty column
-          const parts = cleaned.split(',');
-          const nameCandidate = parts[0]?.replace(/"/g, '').trim();
-          if (nameCandidate) parsedNames.push(nameCandidate);
+      for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line) continue;
+
+        // Skip standard header rows
+        const lower = line.toLowerCase();
+        if (
+          lower === 'student name' ||
+          lower === 'name' ||
+          lower.startsWith('index,') ||
+          lower.startsWith('no,') ||
+          lower.startsWith('no.,') ||
+          lower.startsWith('register number') ||
+          lower.startsWith('s/n')
+        ) {
+          continue;
         }
-      });
+
+        // Split CSV, TSV, or semicolon
+        let tokens: string[] = [];
+        if (line.includes('\t')) {
+          tokens = line.split('\t');
+        } else if (line.includes(';')) {
+          tokens = line.split(';');
+        } else if (line.includes(',')) {
+          tokens = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+        } else {
+          tokens = [line];
+        }
+
+        tokens = tokens.map((t) => t.replace(/^["'\s]+|["'\s]+$/g, '').trim()).filter(Boolean);
+
+        let candidate = '';
+        if (tokens.length === 1) {
+          candidate = tokens[0].replace(/^[0-9]+[.)\s-]+/, '').trim();
+        } else if (tokens.length >= 2) {
+          // If first token is a register number (e.g. "1", "01"), second column is usually the student name!
+          if (/^[0-9]+$/.test(tokens[0]) && tokens[1]) {
+            candidate = tokens[1].replace(/^[0-9]+[.)\s-]+/, '').trim();
+          } else {
+            // Pick the first non-numeric token that isn't a class label
+            const nonNumeric = tokens.find((t) => !/^[0-9]+$/.test(t) && t.toLowerCase() !== 's1-7' && t.length > 2);
+            candidate = nonNumeric || tokens[0];
+          }
+        }
+
+        if (candidate && candidate.length > 1 && !/^[0-9]+$/.test(candidate)) {
+          parsedNames.push(candidate);
+        }
+      }
 
       if (parsedNames.length > 0) {
-        const existingNames = new Set(roster.map((s) => s.name.toLowerCase()));
-        const newItems: StudentRosterItem[] = [];
-
-        parsedNames.forEach((name, idx) => {
-          if (!existingNames.has(name.toLowerCase())) {
-            newItems.push({
-              id: `s-file-${Date.now()}-${idx}`,
-              name,
-              hasJoined: false,
-              memoryNoteCount: 0,
-              groupContributionsCount: 0,
-              cardsSentCount: 0,
-              reflectionCompleted: false,
-              completionScore: 0,
-            });
-            existingNames.add(name.toLowerCase());
-          }
-        });
-
-        const updated = [...roster, ...newItems];
+        const updated = setRosterFromNamesText(parsedNames.join('\n'));
         setRoster(updated);
-        saveRoster(updated);
         setNamelistBoxText(updated.map((s) => s.name).join('\n'));
-        showToast(`📁 Imported ${newItems.length} student names from "${file.name}".`);
+        showToast(`📁 Successfully loaded ${updated.length} student names from "${file.name}"!`);
       } else {
         showToast('⚠️ No valid student names found in uploaded file.');
       }
     };
     reader.readAsText(file);
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  // Export static class-list.csv for GitHub Pages repository
+  const handleExportClassListForGitHub = () => {
+    playTapSound();
+    const csvContent = ['Index,Student Name,Class', ...roster.map((s, idx) => `${idx + 1},"${s.name}",S1-7`)].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'class-list.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showToast('💾 Downloaded class-list.csv for GitHub Pages public folder!');
   };
 
   // Wheel of Names style namelist handlers
@@ -592,6 +635,22 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onClose, onS
                   <span>{copiedLink ? 'Copied' : 'Copy'}</span>
                 </button>
               </div>
+
+              <div className="pt-2 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px]">
+                <span className="text-emerald-400 font-bold flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>{roster.length} students embedded for dropdown selection</span>
+                </span>
+                <a
+                  href={studentJoinUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-amber-300 hover:text-amber-200 font-bold underline"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  <span>Test Student View</span>
+                </a>
+              </div>
             </div>
           </div>
 
@@ -876,12 +935,20 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onClose, onS
                 <span>Upload .csv / .txt</span>
               </button>
               <button
+                onClick={handleExportClassListForGitHub}
+                className="px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-emerald-300 font-bold text-xs flex items-center gap-1.5 border border-emerald-800/60 transition active:scale-95"
+                title="Download class-list.csv for GitHub Pages public folder"
+              >
+                <Download className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Save class-list.csv</span>
+              </button>
+              <button
                 onClick={handleResetToDefaultRoster}
                 className="px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white font-bold text-xs flex items-center gap-1.5 border border-slate-800 transition active:scale-95"
                 title="Restore default S1-7 sample names"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
-                <span>Load S1-7 Sample (28)</span>
+                <span>Load S1-7 (28)</span>
               </button>
             </div>
           </div>

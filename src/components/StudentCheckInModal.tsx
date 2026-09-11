@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Users, 
   Search, 
@@ -8,11 +8,12 @@ import {
   UserCheck, 
   ArrowRight,
   UserPlus,
-  ChevronDown
+  ChevronDown,
+  RefreshCw
 } from 'lucide-react';
 import { S17Logo } from './S17Logo';
 import { StudentRosterItem } from '../types';
-import { getStoredRoster, setCurrentStudent, saveRoster } from '../utils/sessionStore';
+import { getStoredRoster, setCurrentStudent, saveRoster, subscribeToSync } from '../utils/sessionStore';
 import { playTapSound, playCelebrationFanfare } from '../utils/sound';
 
 interface StudentCheckInModalProps {
@@ -33,7 +34,40 @@ export const StudentCheckInModal: React.FC<StudentCheckInModalProps> = ({
   const [customName, setCustomName] = useState('');
   const [showAddCustom, setShowAddCustom] = useState(false);
 
+  // Sync roster whenever modal opens or cross-tab/sync event arrives
+  useEffect(() => {
+    if (isOpen) {
+      setRoster(getStoredRoster());
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToSync((action) => {
+      if (action === 'ROSTER_UPDATED') {
+        setRoster(getStoredRoster());
+      }
+    });
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 's17_student_roster') {
+        setRoster(getStoredRoster());
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
   if (!isOpen) return null;
+
+  const handleReloadRoster = () => {
+    playTapSound();
+    const updated = getStoredRoster();
+    setRoster(updated);
+  };
 
   const filteredRoster = roster.filter((s) =>
     s.name.toLowerCase().includes(searchQuery.toLowerCase().trim())
@@ -126,43 +160,64 @@ export const StudentCheckInModal: React.FC<StudentCheckInModalProps> = ({
           </div>
         )}
 
+        {/* Drop-down list selector - prominent primary selection */}
+        {roster.length > 0 ? (
+          <div className="mt-4 shrink-0">
+            <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5 flex items-center justify-between">
+              <span>▼ Select Your Name (Drop-Down List):</span>
+              <span className="text-[11px] font-bold text-amber-900 bg-amber-200 px-2 py-0.5 rounded-md">
+                {roster.length} Students
+              </span>
+            </label>
+            <div className="relative">
+              <select
+                id="student-modal-dropdown-select"
+                value={currentStudent?.id || ''}
+                onChange={(e) => {
+                  const found = roster.find((s) => s.id === e.target.value);
+                  if (found) {
+                    handleSelectStudent(found);
+                  }
+                }}
+                className="w-full py-3 pl-3.5 pr-10 rounded-2xl border-2 border-slate-900 text-sm font-black bg-amber-100 hover:bg-amber-200 text-slate-950 focus:ring-4 focus:ring-amber-400 focus:outline-hidden cursor-pointer transition appearance-none shadow-xs"
+              >
+                <option value="">▼ Click to choose your name ({roster.length} students)...</option>
+                {roster.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} {s.hasJoined ? '(Checked In ✓)' : ''}
+                  </option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-950">
+                <ChevronDown className="w-5 h-5" />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-4 p-3 bg-amber-50 border-2 border-amber-300 rounded-2xl flex items-center justify-between">
+            <span className="text-xs font-bold text-amber-900">Class list not loaded yet</span>
+            <button
+              type="button"
+              onClick={handleReloadRoster}
+              className="px-3 py-1.5 bg-amber-400 hover:bg-amber-500 text-slate-950 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-2xs"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Load S1-7 List
+            </button>
+          </div>
+        )}
+
         {/* Search input */}
-        <div className="mt-4 relative shrink-0">
+        <div className="mt-3 relative shrink-0">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Type your name to search..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-2xl border-2 border-slate-900 text-sm font-bold bg-slate-50 focus:bg-white focus:ring-2 focus:ring-amber-400 focus:outline-hidden"
+            placeholder="Or type your name to filter..."
+            className="w-full pl-10 pr-4 py-2 rounded-2xl border-2 border-slate-900 text-xs sm:text-sm font-bold bg-slate-50 focus:bg-white focus:ring-2 focus:ring-amber-400 focus:outline-hidden"
           />
         </div>
-
-        {/* Drop-down list selector */}
-        {roster.length > 0 && (
-          <div className="mt-2.5 relative shrink-0">
-            <select
-              value={currentStudent?.id || ''}
-              onChange={(e) => {
-                const found = roster.find((s) => s.id === e.target.value);
-                if (found) {
-                  handleSelectStudent(found);
-                }
-              }}
-              className="w-full py-2.5 pl-3.5 pr-9 rounded-2xl border-2 border-slate-900 text-xs sm:text-sm font-black bg-amber-100 hover:bg-amber-200 text-slate-950 focus:ring-2 focus:ring-amber-400 focus:outline-hidden cursor-pointer transition appearance-none shadow-xs"
-            >
-              <option value="">▼ Drop-down list: Pick your name directly ({roster.length} students)...</option>
-              {roster.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} {s.hasJoined ? '(Checked In ✓)' : ''}
-                </option>
-              ))}
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-950">
-              <ChevronDown className="w-4 h-4" />
-            </div>
-          </div>
-        )}
 
         {/* Student list */}
         <div className="mt-3 flex-1 overflow-y-auto space-y-1.5 pr-1 min-h-[220px]">

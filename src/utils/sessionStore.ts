@@ -97,33 +97,166 @@ export const subscribeToSync = (callback: (action: string, payload: unknown) => 
   };
 };
 
-// STORAGE HELPERS - Do not prefill names with fake samples
+// STORAGE HELPERS - Maintains active S1-7 student namelist
 export const getStoredRoster = (): StudentRosterItem[] => {
   if (typeof window === 'undefined') return [];
   const saved = localStorage.getItem('s17_student_roster');
   if (saved) {
     try {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed)) {
-        // If the stored roster was the previous hardcoded fake sample list, clean it out
-        const isDemoRoster = parsed.length === 28 && parsed[0]?.name === 'Sarah Lim Zhi Xuan' && parsed[1]?.name === 'Marcus Tan Jun Jie';
-        if (!isDemoRoster) {
-          return parsed;
-        }
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
       }
     } catch {
       // fallback
     }
   }
-  // Clean default: empty roster, waiting for teacher to paste their class namelist
-  localStorage.setItem('s17_student_roster', JSON.stringify([]));
-  return [];
+
+  // Default fallback: S1-7 official 28-student roster
+  const initial: StudentRosterItem[] = INITIAL_S17_ROSTER.map((s, idx) => ({
+    id: s.id || `s-${idx + 1}`,
+    name: s.name,
+    hasJoined: false,
+    memoryNoteCount: 0,
+    groupContributionsCount: 0,
+    cardsSentCount: 0,
+    reflectionCompleted: false,
+    completionScore: 0,
+  }));
+
+  try {
+    localStorage.setItem('s17_student_roster', JSON.stringify(initial));
+  } catch {
+    // ignore
+  }
+  return initial;
 };
 
 export const saveRoster = (roster: StudentRosterItem[]) => {
   if (typeof window === 'undefined') return;
   localStorage.setItem('s17_student_roster', JSON.stringify(roster));
   notifySync('ROSTER_UPDATED', roster);
+};
+
+/**
+ * Compact URL encoder for cross-device roster synchronization on static hosts (like GitHub Pages)
+ */
+export const encodeRosterToParam = (roster: StudentRosterItem[]): string => {
+  try {
+    const names = roster.map((s) => s.name.trim()).filter(Boolean);
+    if (names.length === 0) return '';
+    return encodeURIComponent(names.join('|'));
+  } catch {
+    return '';
+  }
+};
+
+/**
+ * Compact URL decoder for cross-device roster synchronization
+ */
+export const decodeRosterFromParam = (param: string): string[] => {
+  try {
+    const decoded = decodeURIComponent(param);
+    let names: string[] = [];
+    if (decoded.includes('|')) {
+      names = decoded.split('|');
+    } else if (decoded.includes('\n')) {
+      names = decoded.split(/\r?\n/);
+    } else {
+      names = decoded.split(',');
+    }
+    return names.map((n) => n.replace(/^[0-9]+[.)\s-]+/, '').trim()).filter(Boolean);
+  } catch {
+    return [];
+  }
+};
+
+/**
+ * Build a full student join URL containing the encoded class list for GitHub Pages
+ */
+export const buildStudentJoinUrl = (roster: StudentRosterItem[]): string => {
+  if (typeof window === 'undefined') return '';
+  const origin = window.location.origin;
+  const pathname = window.location.pathname;
+  const encoded = encodeRosterToParam(roster);
+  const base = `${origin}${pathname}?mode=student&session=s17`;
+  return encoded ? `${base}&roster=${encoded}` : base;
+};
+
+/**
+ * Auto-initialize roster on app load:
+ * 1. Checks if ?roster=... is in the URL search or hash (e.g. scanned from teacher QR code)
+ * 2. Checks if a static class-list.txt exists on the server/GitHub Pages
+ * 3. Falls back to stored roster or initial S1-7 roster
+ */
+export const initRosterFromUrlOrStorage = async (): Promise<StudentRosterItem[]> => {
+  if (typeof window === 'undefined') return [];
+
+  // 1. Check URL parameters
+  try {
+    const url = new URL(window.location.href);
+    const rosterParam = url.searchParams.get('roster') || url.searchParams.get('names') || url.searchParams.get('class');
+    if (rosterParam) {
+      const names = decodeRosterFromParam(rosterParam);
+      if (names.length > 0) {
+        const updated = setRosterFromNamesText(names.join('\n'));
+        return updated;
+      }
+    }
+
+    // Also check hash in case of hash-based routing
+    if (window.location.hash.includes('roster=')) {
+      const hashParams = new URLSearchParams(window.location.hash.replace(/^#\/?/, ''));
+      const hashRoster = hashParams.get('roster');
+      if (hashRoster) {
+        const names = decodeRosterFromParam(hashRoster);
+        if (names.length > 0) {
+          const updated = setRosterFromNamesText(names.join('\n'));
+          return updated;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Could not parse roster from URL', e);
+  }
+
+  // 2. If stored roster is already populated, return it
+  const current = getStoredRoster();
+  if (current.length > 0) {
+    return current;
+  }
+
+  // 3. Otherwise try fetching static class-list.txt / class-list.csv from GitHub Pages / public assets
+  try {
+    const baseUrl = (import.meta as any).env?.BASE_URL || '/';
+    const endpoints = [
+      `${baseUrl}class-list.txt`,
+      `${baseUrl}class-list.csv`,
+      './class-list.txt',
+      './class-list.csv'
+    ];
+
+    for (const url of endpoints) {
+      try {
+        const res = await fetch(url);
+        if (res.ok) {
+          const text = await res.text();
+          if (text && text.trim().length > 5 && !text.includes('<!DOCTYPE html>')) {
+            const updated = setRosterFromNamesText(text);
+            if (updated.length > 0) {
+              return updated;
+            }
+          }
+        }
+      } catch {
+        // continue trying
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  return getStoredRoster();
 };
 
 export const getCurrentStudent = (): StudentRosterItem | null => {
